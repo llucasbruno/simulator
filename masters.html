@@ -119,6 +119,14 @@
 </head>
 <body>
 
+<!-- Loading overlay enquanto DB inicializa -->
+<div id="loadingOverlay" style="position:fixed;inset:0;background:#09090b;z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;transition:opacity 0.4s;">
+    <img src="https://am-a.akamaihd.net/image?resize=3840:&f=http%3A%2F%2Fstatic.lolesports.com%2Fteams%2F1637252586938_teamliquid.png" style="width:60px;opacity:0.8;animation:pulse 1.2s ease-in-out infinite;">
+    <div style="color:#6a8fa8;font-size:0.82rem;font-family:monospace;letter-spacing:2px;">CARREGANDO DADOS...</div>
+    <style>@keyframes pulse{0%,100%{opacity:0.4}50%{opacity:1}}</style>
+</div>
+
+
 <h1>⚡ VCT MASTERS</h1>
 <div class="subtitle">Internacional — Os 8 Melhores do Mundo</div>
 
@@ -745,8 +753,13 @@ class MastersSimulator {
     }
 }
 
-let ms;
-DB.init().then(() => { ms = new MastersSimulator(); });
+function _initSim() {
+    if (typeof DB === 'undefined') { document.addEventListener('db-ready', _initSim, { once:true }); return; }
+    window.ms = null;
+    DB.init().then(() => { window.ms = new MastersSimulator();
+        const ov = document.getElementById('loadingOverlay'); if(ov){ov.style.opacity='0';setTimeout(()=>ov.remove(),400);} });
+}
+_initSim();
 </script>
 </body>
 </html>
