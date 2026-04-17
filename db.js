@@ -16,10 +16,9 @@ import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js
 const SUPABASE_URL = 'https://uyxvcixgizxdxhtptwya.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_uzda998tRcpbzhdGU1WPLQ_6i0MXLWt'; // chave "anon public" do seu projeto
 // ─────────────────────────────────────────────────────────────────────────────
-
 const TABLE    = 'simulator_data';
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
-
+ 
 const KNOWN_KEYS = new Set([
     'msi_elo_v14_prime',
     'msi_tl_career_v1',
@@ -32,11 +31,12 @@ const KNOWN_KEYS = new Set([
     'msi_save_v15_zero',
     'msi_archive_v15_zero',
     'msi_champs_v15_zero',
+    'tl_player_profile_v1',
 ]);
-
+ 
 let _online     = true;
 let _writeQueue = [];
-
+ 
 function setStatus(online) {
     _online = online;
     const el = document.getElementById('dbStatus');
@@ -44,7 +44,7 @@ function setStatus(online) {
     el.textContent = online ? '🟢 Online' : '🔴 Offline (dados locais)';
     el.style.color = online ? '#42f590'   : '#ff9d00';
 }
-
+ 
 async function sbWrite(key, value) {
     try {
         if (value === null || value === undefined) {
@@ -64,7 +64,7 @@ async function sbWrite(key, value) {
         _writeQueue.push({ key, value });
     }
 }
-
+ 
 async function flushQueue() {
     if (!_writeQueue.length) return;
     const pending = [..._writeQueue];
@@ -72,14 +72,14 @@ async function flushQueue() {
     for (const { key, value } of pending) await sbWrite(key, value);
     console.log(`[DB] Flushed ${pending.length} pending write(s)`);
 }
-
+ 
 window.addEventListener('online', flushQueue);
-
+ 
 window.DB = {
     async init() {
         const el = document.getElementById('dbStatus');
         if (el) { el.textContent = '🔄 Sincronizando...'; el.style.color = '#6a8fa8'; }
-
+ 
         try {
             const { data, error } = await supabase.from(TABLE).select('key, value');
             if (error) throw error;
@@ -94,7 +94,7 @@ window.DB = {
             console.warn('[DB] Supabase unreachable, using localStorage only:', e.message);
         }
     },
-
+ 
     save(key, value) {
         try {
             if (value === null || value === undefined) localStorage.removeItem(key);
@@ -102,20 +102,25 @@ window.DB = {
         } catch (e) { console.warn('[DB] localStorage write failed:', e.message); }
         if (KNOWN_KEYS.has(key)) sbWrite(key, value);
     },
-
+ 
     load(key) {
         try {
             const raw = localStorage.getItem(key);
             return raw ? JSON.parse(raw) : null;
         } catch (e) { return null; }
     },
-
+ 
     remove(key) {
         localStorage.removeItem(key);
         if (KNOWN_KEYS.has(key)) sbWrite(key, null);
     },
-
+ 
     removeAll(keys) { keys.forEach(k => this.remove(k)); },
-
+ 
     isOnline() { return _online; },
 };
+ 
+// Dispara evento global quando DB estiver pronto
+// (scripts não-módulo podem escutar window.addEventListener('db-ready', ...))
+document.dispatchEvent(new CustomEvent('db-ready'));
+ 
