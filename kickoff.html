@@ -1,0 +1,955 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VCT Kickoff — Regional Qualifier</title>
+    <style>
+        :root {
+            --val-red: #ff4655; --val-dark: #09090b; --val-white: #ece8e1;
+            --bg-color: #121212; --liquid-blue: #00aeff; --gold: #ffd700;
+            --silver: #c0c0c0; --bronze: #cd7f32; --nightmare: #8a0000;
+            --rank-s: #42f590; --rank-a: #b3f542; --rank-b: #ffd700;
+            --rank-c: #ff9d00; --rank-d: #ff4655;
+            --amer-color: #ff5e00; --emea-color: #00ffcc;
+            --pac-color: #ff00a0; --cn-color: #ff0000;
+        }
+        * { box-sizing: border-box; }
+        body { font-family: 'Segoe UI', sans-serif; background: var(--val-dark); color: var(--val-white); margin: 0; padding: 20px; display: flex; flex-direction: column; align-items: center; min-height: 100vh; }
+        ::-webkit-scrollbar { width: 8px; } ::-webkit-scrollbar-track { background: #111; } ::-webkit-scrollbar-thumb { background: #444; border-radius: 4px; }
+
+        h1 { text-transform: uppercase; font-size: 2rem; letter-spacing: 3px; margin-bottom: 5px; text-align: center; }
+        .subtitle { color: #666; font-size: 0.85rem; letter-spacing: 2px; text-transform: uppercase; margin-bottom: 20px; }
+
+        /* Region selector */
+        .region-selector { display: flex; gap: 15px; flex-wrap: wrap; justify-content: center; margin: 20px 0; }
+        .region-card { background: #1a1a1a; border: 2px solid #333; padding: 20px 30px; border-radius: 8px; cursor: pointer; transition: all 0.2s; text-align: center; min-width: 140px; position: relative; }
+        .region-card:hover { transform: translateY(-3px); }
+        .region-card.AMER { border-color: rgba(255,94,0,0.4); }   .region-card.AMER:hover  { border-color: var(--amer-color); box-shadow: 0 0 20px rgba(255,94,0,0.3); }
+        .region-card.EMEA { border-color: rgba(0,255,204,0.4); }  .region-card.EMEA:hover  { border-color: var(--emea-color); box-shadow: 0 0 20px rgba(0,255,204,0.3); }
+        .region-card.PAC  { border-color: rgba(255,0,160,0.4); }  .region-card.PAC:hover   { border-color: var(--pac-color);  box-shadow: 0 0 20px rgba(255,0,160,0.3); }
+        .region-card.CN   { border-color: rgba(255,0,0,0.4); }    .region-card.CN:hover    { border-color: var(--cn-color);   box-shadow: 0 0 20px rgba(255,0,0,0.3); }
+        .region-card.done { opacity: 0.6; }
+        .region-card.active-region { transform: scale(1.05); }
+        .region-card.AMER.active-region { border-color: var(--amer-color); box-shadow: 0 0 25px rgba(255,94,0,0.5); }
+        .region-card.EMEA.active-region { border-color: var(--emea-color); box-shadow: 0 0 25px rgba(0,255,204,0.5); }
+        .region-card.PAC.active-region  { border-color: var(--pac-color);  box-shadow: 0 0 25px rgba(255,0,160,0.5); }
+        .region-card.CN.active-region   { border-color: var(--cn-color);   box-shadow: 0 0 25px rgba(255,0,0,0.5); }
+        .region-name { font-size: 1.1rem; font-weight: 900; letter-spacing: 2px; margin-bottom: 4px; }
+        .region-name.AMER { color: var(--amer-color); } .region-name.EMEA { color: var(--emea-color); }
+        .region-name.PAC  { color: var(--pac-color); }  .region-name.CN   { color: var(--cn-color); }
+        .region-teams-count { font-size: 0.72rem; color: #666; }
+        .region-done-badge { position: absolute; top: 6px; right: 8px; background: rgba(66,245,144,0.15); border: 1px solid var(--rank-s); color: var(--rank-s); font-size: 0.6rem; padding: 1px 5px; border-radius: 2px; font-weight: bold; }
+        .qualified-names { font-size: 0.68rem; color: var(--gold); margin-top: 6px; line-height: 1.4; }
+
+        /* Phase indicator */
+        .phase-indicator { background: #111; padding: 8px 22px; border-radius: 4px; margin-bottom: 12px; border: 1px solid var(--nightmare); color: var(--val-red); font-weight: bold; text-transform: uppercase; letter-spacing: 2px; }
+        .progress-bar { background: var(--nightmare); height: 4px; width: 0%; transition: width 0.5s ease-in-out; margin-bottom: 12px; border-radius: 2px; }
+
+        /* Controls */
+        .controls { margin: 12px 0; display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
+        button { background-color: var(--nightmare); color: white; border: 1px solid #ff4655; padding: 10px 20px; font-size: 0.85rem; font-weight: bold; text-transform: uppercase; cursor: pointer; transition: all 0.2s; border-radius: 2px; }
+        button:hover { filter: brightness(1.2); transform: translateY(-1px); }
+        button.secondary { background: transparent; border-color: #444; color: #888; }
+        button.secondary:hover { border-color: #fff; color: #fff; }
+        button.career-btn { background: linear-gradient(135deg,#0a1628,#1a3050); border: 1px solid var(--liquid-blue); color: var(--liquid-blue); font-weight: 900; }
+        button.career-btn:hover { box-shadow: 0 0 15px rgba(0,174,255,0.5); }
+        .career-tab-btn { padding:12px 22px; cursor:pointer; color:#6a8fa8; font-size:0.78rem; font-weight:bold; text-transform:uppercase; letter-spacing:1px; border-bottom:3px solid transparent; transition:all 0.2s; }
+        .career-tab-btn:hover { color:var(--liquid-blue); }
+        .career-tab-btn.active { color:var(--liquid-blue); border-bottom-color:var(--liquid-blue); background:rgba(0,174,255,0.05); }
+        .stat-cards { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-bottom:20px; }
+        .stat-card { background:#131c27; border:1px solid #1e3050; border-radius:6px; padding:14px; text-align:center; }
+        .stat-card .val { font-size:1.7rem; font-weight:900; color:var(--liquid-blue); font-family:'Consolas',monospace; }
+        .stat-card .lbl { font-size:0.68rem; color:#6a8fa8; text-transform:uppercase; letter-spacing:1px; margin-top:3px; }
+        .stat-card.gold .val { color:var(--gold); }
+        .chart-container { background:#0a1222; border:1px solid #1e3050; border-radius:6px; padding:15px; margin-bottom:15px; }
+        .chart-container h3 { margin:0 0 12px; color:#6a8fa8; font-size:0.72rem; text-transform:uppercase; }
+        #eloChartKO { width:100%; height:180px; display:block; }
+        .history-table { width:100%; border-collapse:collapse; font-size:0.78rem; }
+        .history-table th { color:#6a8fa8; font-size:0.65rem; text-transform:uppercase; padding:7px; border-bottom:1px solid #1e3050; text-align:left; font-weight:normal; }
+        .history-table td { padding:7px; border-bottom:1px solid #131c27; vertical-align:middle; }
+        .h2h-table { width:100%; border-collapse:collapse; font-size:0.78rem; }
+        .h2h-table th { color:#6a8fa8; font-size:0.65rem; text-transform:uppercase; padding:7px; border-bottom:1px solid #1e3050; text-align:left; font-weight:normal; }
+        .h2h-table td { padding:8px 7px; border-bottom:1px solid #131c27; vertical-align:middle; }
+        .win-bar-bg { background:#111; border-radius:10px; height:5px; overflow:hidden; width:80px; display:inline-block; vertical-align:middle; margin-left:6px; }
+        .win-bar-fill { height:100%; border-radius:10px; background:var(--liquid-blue); }
+        .result-w { color:var(--rank-s); font-family:monospace; } .result-l { color:var(--val-red); font-family:monospace; }
+        .elo-up { color:var(--rank-s); font-family:monospace; } .elo-down { color:var(--val-red); font-family:monospace; }
+        button.qualify-btn:hover { box-shadow: 0 0 15px rgba(66,245,144,0.4); }
+        button:disabled { background: #222; border-color: #333; cursor: not-allowed; filter: grayscale(1); transform: none; }
+        button.masters-btn { background: linear-gradient(135deg, #0a1628, #1a3050); border-color: var(--liquid-blue); color: var(--liquid-blue); font-weight: 900; }
+        button.masters-btn:hover { box-shadow: 0 0 15px rgba(0,174,255,0.5); }
+
+        /* Groups */
+        .main-container { display: flex; gap: 15px; width: 100%; max-width: 1200px; flex-wrap: wrap; justify-content: center; margin-bottom: 20px; }
+        .group-card { background: var(--bg-color); padding: 10px; border: 1px solid #333; width: 280px; border-radius: 8px; }
+        .group-card h3 { margin: 0 0 10px; border-left: 4px solid var(--val-red); padding-left: 10px; color: #fff; font-size: 0.95rem; }
+        table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
+        th, td { padding: 6px; text-align: center; border-bottom: 1px solid #222; vertical-align: middle; }
+        td:first-child { text-align: left; display: flex; align-items: center; gap: 6px; border-bottom: none; }
+        th { color: #666; font-size: 0.68rem; text-transform: uppercase; }
+        .team-logo { width: 20px !important; height: 20px !important; object-fit: contain; flex-shrink: 0; }
+        .big-logo   { width: 55px !important; height: 55px !important; object-fit: contain; }
+        .manual-team-row { color: var(--liquid-blue); }
+        .qualified-row td { color: var(--rank-s); }
+        .qualified-row td:first-child::after { content: ' ✓'; color: var(--rank-s); font-weight: bold; }
+
+        /* Bracket */
+        .bracket-container { display: flex; gap: 25px; overflow-x: auto; padding: 20px; align-items: flex-start; justify-content: center; width: 100%; background: rgba(0,0,0,0.4); border-radius: 8px; border: 1px solid #333; }
+        .bracket-column { display: flex; flex-direction: column; gap: 15px; min-width: 220px; align-items: center; }
+        .bracket-header { text-align: center; font-weight: bold; color: #666; margin-bottom: 8px; text-transform: uppercase; border-bottom: 2px solid var(--nightmare); width: 100%; padding-bottom: 4px; font-size: 0.8rem; }
+        .match-card { background: #1a1a1a; border: 1px solid #333; padding: 8px; width: 100%; display: flex; flex-direction: column; gap: 3px; border-left: 2px solid #333; border-radius: 4px; }
+        .match-card.active { border-color: var(--nightmare); border-left: 4px solid var(--val-red); }
+        .match-card.tl-match { border-color: var(--liquid-blue) !important; border-left-width: 3px !important; box-shadow: 0 0 10px rgba(0,174,255,0.2) !important; }
+        .match-team { display: flex; justify-content: space-between; align-items: center; font-size: 0.8rem; background: rgba(0,0,0,0.4); padding: 3px 6px; border-radius: 2px; }
+        .match-team.winner { color: var(--val-red); font-weight: bold; background: rgba(255,70,85,0.1); border-left: 2px solid var(--val-red); }
+        .match-team.tl-winner { color: var(--liquid-blue) !important; background: rgba(0,174,255,0.1) !important; border-left: 2px solid var(--liquid-blue) !important; }
+        .team-name-flex { display: flex; align-items: center; gap: 5px; overflow: hidden; white-space: nowrap; }
+        .match-vs { font-size: 0.58rem; color: #444; text-align: center; }
+        .match-score { font-size: 0.62rem; color: #555; text-align: center; font-family: monospace; }
+
+        /* Modal */
+        .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.95); display: none; justify-content: center; align-items: center; z-index: 2000; }
+        .modal-content { background: #161616; border: 1px solid #333; padding: 30px; text-align: center; max-width: 700px; width: 90%; position: relative; max-height: 90vh; overflow-y: auto; border-radius: 4px; }
+        .close-modal-btn { position: absolute; top: 12px; right: 18px; font-size: 1.8rem; cursor: pointer; color: #777; }
+        input[type="number"] { background: #000; border: 1px solid #444; color: var(--val-red); font-size: 1.3rem; width: 60px; text-align: center; padding: 5px; border-radius: 2px; }
+        .map-row { display: flex; justify-content: center; align-items: center; gap: 12px; margin-bottom: 10px; }
+        .prematch-info { background: #0a1222; border: 1px solid #1e3050; border-radius: 6px; padding: 10px 14px; margin-bottom: 15px; text-align: left; }
+        .prematch-info h4 { margin: 0 0 6px; color: #6a8fa8; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 1px; }
+        .prematch-row { display: flex; gap: 18px; flex-wrap: wrap; }
+        .prematch-stat .pval { font-size: 1rem; font-weight: bold; font-family: monospace; }
+        .prematch-stat .plbl { font-size: 0.65rem; color: #6a8fa8; text-transform: uppercase; }
+        .win-chance-bar { height: 7px; background: #111; border-radius: 4px; overflow: hidden; margin: 8px 0 0; }
+        .win-chance-fill { height: 100%; border-radius: 4px; background: linear-gradient(90deg, var(--liquid-blue), #0070aa); transition: width 0.6s ease; }
+        .k-badge { display: inline-flex; align-items: center; gap: 3px; background: rgba(255,215,0,0.1); border: 1px solid rgba(255,215,0,0.3); color: var(--gold); font-size: 0.68rem; padding: 2px 7px; border-radius: 10px; font-family: monospace; }
+
+        /* Sidebar */
+        .sidebar { width: 100%; max-width: 1200px; margin-top: 10px; background: #111; padding: 15px 20px; border-top: 4px solid var(--nightmare); }
+        .log-box { max-height: 180px; overflow-y: auto; font-family: 'Consolas', monospace; background: rgba(0,0,0,0.5); padding: 10px; font-size: 0.78rem; border: 1px solid #333; color: #ccc; }
+        .log-entry { border-bottom: 1px solid #222; padding: 5px 0; }
+        .flavor-text { color: var(--val-red); font-style: italic; font-size: 0.7rem; opacity: 0.85; }
+        .tl-log-entry { background: rgba(0,174,255,0.05); border-left: 3px solid var(--liquid-blue); padding-left: 6px; }
+
+        /* Qualify overlay */
+        .qualify-overlay { background: linear-gradient(135deg, #0a1a0a, #0d2a0d); border: 2px solid var(--rank-s); border-radius: 8px; padding: 25px; text-align: center; margin: 20px 0; }
+        .qualify-overlay h2 { color: var(--rank-s); font-size: 1.5rem; margin-bottom: 15px; }
+        .qual-team-list { display: flex; justify-content: center; gap: 30px; flex-wrap: wrap; margin: 15px 0; }
+        .qual-team-card { display: flex; flex-direction: column; align-items: center; gap: 8px; background: rgba(66,245,144,0.05); border: 1px solid rgba(66,245,144,0.3); padding: 15px 20px; border-radius: 6px; }
+        .qual-team-card img { width: 48px; height: 48px; object-fit: contain; }
+        .qual-team-card .qname { font-weight: bold; font-size: 0.9rem; color: var(--rank-s); }
+        .qual-team-card .qelo { font-family: monospace; font-size: 0.75rem; color: #666; }
+
+        /* Status banner */
+        .status-banner { width: 100%; max-width: 1200px; background: #111; border: 1px solid #333; border-radius: 6px; padding: 12px 20px; margin-bottom: 15px; display: flex; align-items: center; gap: 15px; flex-wrap: wrap; justify-content: center; }
+        .status-item { display: flex; align-items: center; gap: 6px; font-size: 0.8rem; }
+        .status-dot { width: 8px; height: 8px; border-radius: 50%; }
+        .dot-done    { background: var(--rank-s); }
+        .dot-pending { background: #333; border: 1px solid #555; }
+
+        .reg-tag { font-size: 0.58rem; padding: 1px 4px; border-radius: 2px; font-weight: bold; margin-right: 3px; display: inline-block; }
+        .reg-AMER { background: rgba(255,94,0,0.2); color: var(--amer-color); border: 1px solid var(--amer-color); }
+        .reg-EMEA { background: rgba(0,255,204,0.2); color: var(--emea-color); border: 1px solid var(--emea-color); }
+        .reg-PAC  { background: rgba(255,0,160,0.2); color: var(--pac-color);  border: 1px solid var(--pac-color); }
+        .reg-CN   { background: rgba(255,0,0,0.2);   color: var(--cn-color);   border: 1px solid var(--cn-color); }
+    </style>
+    <script type="module" src="db.js"></script>
+    <script type="module" src="navbar.js"></script>
+</head>
+<body>
+
+<h1 id="mainTitle">VCT KICKOFF</h1>
+<div class="subtitle" id="mainSubtitle">Selecione uma região para iniciar a classificatória</div>
+
+<div id="statusBanner" class="status-banner"></div>
+
+<!-- Region Selector -->
+<div id="regionSelector" class="region-selector"></div>
+
+<!-- Phase + Progress (hidden until a region is active) -->
+<div id="activeSection" style="display:none; width:100%; max-width:1200px; flex-direction:column; align-items:center;">
+    <div class="controls">
+        <button id="btnPlay" onclick="ko.playRound()">⚔ PRÓXIMA BATALHA</button>
+        <button id="btnReopenModal" onclick="ko.openModal(ko.manualMatchPending, ko.manualMatchPending?.bestOf||3)" style="display:none; background:linear-gradient(135deg,#1a0a00,#2a1500); border:1px solid #ff9d00; color:#ff9d00; font-weight:900;">🎮 INSERIR RESULTADO TL</button>
+        <button id="btnQualify" class="qualify-btn" onclick="ko.saveQualifiers()" style="display:none;">🎯 SALVAR CLASSIFICADOS</button>
+        <button id="btnMasters" class="masters-btn" onclick="window.location.href='masters.html'" style="display:none;">⚡ ABRIR MASTERS</button>
+        <button class="career-btn" onclick="ko.openCareerModal()">⚡ MINHA CARREIRA</button>
+        <button class="secondary" onclick="ko.resetRegion()">↩ TROCAR REGIÃO</button>
+        <button class="secondary" style="border-color:#500; color:#800;" onclick="ko.resetAll()">WIPE DATA</button>
+    </div>
+    <div id="phaseDisplay" class="phase-indicator">—</div>
+    <div style="width:100%; max-width:800px;"><div id="progressBar" class="progress-bar"></div></div>
+    <div id="mainDisplay" class="main-container"></div>
+    <div id="qualifyDisplay" style="display:none; width:100%; max-width:900px;"></div>
+</div>
+
+<div class="sidebar">
+    <h3 style="margin:0 0 10px; color:#666; font-size:0.8rem; text-transform:uppercase; letter-spacing:1px;">Relatório de Combate</h3>
+    <div id="gameLog" class="log-box"></div>
+</div>
+
+<!-- Career Modal -->
+<div id="careerModal" class="modal-overlay">
+    <div class="modal-content" style="max-width:920px;padding:0;background:#0d1117;border-color:#1e3050;">
+        <span class="close-modal-btn" onclick="document.getElementById('careerModal').style.display='none'" style="top:15px;right:20px;">&times;</span>
+        <div style="background:linear-gradient(135deg,#0a1628,#0d1f3c);padding:20px 30px;border-bottom:1px solid #1e3050;display:flex;align-items:center;gap:15px;">
+            <img src="https://am-a.akamaihd.net/image?resize=3840:&f=http%3A%2F%2Fstatic.lolesports.com%2Fteams%2F1637252586938_teamliquid.png" style="width:48px;height:48px;object-fit:contain;">
+            <div><h2 style="margin:0;color:var(--liquid-blue);font-size:1.4rem;letter-spacing:2px;">TEAM LIQUID — CARREIRA</h2><p style="margin:3px 0 0;color:#6a8fa8;font-size:0.78rem;">Histórico Completo (Calibração + Kickoff + Masters)</p></div>
+        </div>
+        <div style="display:flex;border-bottom:1px solid #1e3050;">
+            <div class="career-tab-btn active" onclick="ko.switchCareerTab('overview',this)">VISÃO GERAL</div>
+            <div class="career-tab-btn" onclick="ko.switchCareerTab('history',this)">HISTÓRICO</div>
+            <div class="career-tab-btn" onclick="ko.switchCareerTab('h2h',this)">H2H</div>
+        </div>
+        <div id="careerBodyKO" style="padding:20px 25px;min-height:350px;"></div>
+    </div>
+</div>
+
+<!-- Manual Match Modal -->
+<div id="manualModal" class="modal-overlay">
+    <div class="modal-content">
+        <span class="close-modal-btn" onclick="ko.closeModal()" title="Fechar (a partida continua pendente)" style="color:#777;">&times;</span>
+        <div style="background:rgba(255,150,0,0.1);border:1px solid rgba(255,150,0,0.3);border-radius:4px;padding:6px 12px;margin-bottom:10px;font-size:0.72rem;color:#ff9d00;text-align:center;">
+            ⚠️ Insira o resultado para avançar o torneio — você pode fechar e reabrir este modal</div>
+        <h2 style="color:var(--liquid-blue); margin-bottom:3px;">TEAM LIQUID</h2>
+        <p id="manualPhaseTitle" style="color:#666; font-size:0.78rem; margin-bottom:3px;"></p>
+        <span id="kFactorBadge" class="k-badge">K: ?</span>
+        <div id="prematchInfo" class="prematch-info" style="margin-top:10px;"></div>
+        <div style="display:flex; justify-content:center; align-items:center; gap:20px; margin-bottom:20px; font-weight:bold; font-size:1.3rem;">
+            <div style="text-align:center"><img id="modLogoManual" class="big-logo" src=""><br><span style="color:var(--liquid-blue); font-size:0.9rem;">LIQUID</span></div>
+            <span style="color:#333">VS</span>
+            <div style="text-align:center"><img id="modLogoOpp" class="big-logo" src=""><br><span id="modalOpponent" style="font-size:0.9rem;">OPONENTE</span></div>
+        </div>
+        <div id="mapsContainer"></div>
+        <div style="margin-top:20px;"><button onclick="ko.confirmManualMatch()" style="width:100%;">CONFIRMAR RESULTADO</button></div>
+    </div>
+</div>
+
+<script>
+// ─── Shared keys (must match msi.html and career edition) ────────────────────
+const ELO_KEY        = 'msi_elo_v14_prime';
+const QUALIFIER_KEY  = 'msi_qualifiers_v1';   // { AMER:[…], EMEA:[…], PAC:[…], CN:[…] }
+const TL_STATS_KEY   = 'msi_tl_career_v1';
+const KICKOFF_KEY    = 'kickoff_save_v1';
+
+const DEFAULT_LOGO = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23555'%3E%3Cpath d='M12 2L2 7l1.5 11L12 22l8.5-4L22 7l-10-5z'/%3E%3C/svg%3E";
+
+const REGION_COLORS = { AMER: 'var(--amer-color)', EMEA: 'var(--emea-color)', PAC: 'var(--pac-color)', CN: 'var(--cn-color)' };
+const REGION_LABELS = { AMER: 'Américas', EMEA: 'Europa / Oriente Médio', PAC: 'Pacífico', CN: 'China' };
+
+// ─── All teams, split by region ──────────────────────────────────────────────
+const ALL_TEAMS = [
+    { name:"NRG",         region:"AMER", rating:0, logo:"https://am-a.akamaihd.net/image?resize=3840:&f=http%3A%2F%2Fstatic.lolesports.com%2Fteams%2F1731490666442_NRGWHT.png" },
+    { name:"SEN",         region:"AMER", rating:0, logo:"https://am-a.akamaihd.net/image?resize=3840:&f=http%3A%2F%2Fstatic.lolesports.com%2Fteams%2F1739254422982_sent.png" },
+    { name:"LOUD",        region:"AMER", rating:0, logo:"https://am-a.akamaihd.net/image?resize=3840:&f=http%3A%2F%2Fstatic.lolesports.com%2Fteams%2F1644060140569_LOUDGreen.png" },
+    { name:"LEV",         region:"AMER", rating:0, logo:"https://am-a.akamaihd.net/image?resize=3840:&f=http%3A%2F%2Fstatic.lolesports.com%2Fteams%2F1644148043034_Leviatncolor.png" },
+    { name:"100T",        region:"AMER", rating:0, logo:"https://am-a.akamaihd.net/image?resize=3840:&f=http%3A%2F%2Fstatic.lolesports.com%2Fteams%2F1644966311613_100TVAL.png" },
+    { name:"C9",          region:"AMER", rating:0, logo:"https://am-a.akamaihd.net/image?resize=3840:&f=http%3A%2F%2Fstatic.lolesports.com%2Fteams%2F1725635348011_C9-Logo.png" },
+    { name:"EG",          region:"AMER", rating:0, logo:"https://am-a.akamaihd.net/image?resize=3840:&f=http%3A%2F%2Fstatic.lolesports.com%2Fteams%2F1731490673901_VintageEG.png" },
+    { name:"MIBR",        region:"AMER", rating:0, logo:"https://am-a.akamaihd.net/image?resize=3840:&f=http%3A%2F%2Fstatic.lolesports.com%2Fteams%2F1648844013086_mibr_white-logo.png" },
+    { name:"FUR",         region:"AMER", rating:0, logo:"https://am-a.akamaihd.net/image?resize=3840:&f=http%3A%2F%2Fstatic.lolesports.com%2Fteams%2F1644059765262_FURIA-LOGO.png" },
+    { name:"KRU",         region:"AMER", rating:0, logo:"https://am-a.akamaihd.net/image?resize=3840:&f=http%3A%2F%2Fstatic.lolesports.com%2Fteams%2F1630017626481_kru.png" },
+    { name:"G2",          region:"AMER", rating:0, logo:"https://am-a.akamaihd.net/image?resize=3840:&f=http%3A%2F%2Fstatic.lolesports.com%2Fteams%2F1675329807714_G2-Esports-Logo1.png" },
+    { name:"2G",          region:"AMER", rating:0, logo:"https://am-a.akamaihd.net/image?resize=3840:&f=http%3A%2F%2Fstatic.lolesports.com%2Fteams%2F1734014001506_2gPurple.png" },
+    { name:"FNC",         region:"EMEA", rating:0, logo:"https://am-a.akamaihd.net/image?resize=3840:&f=http%3A%2F%2Fstatic.lolesports.com%2Fteams%2F1644542427486_download37.png" },
+    { name:"Team Liquid", region:"EMEA", rating:0, logo:"https://am-a.akamaihd.net/image?resize=3840:&f=http%3A%2F%2Fstatic.lolesports.com%2Fteams%2F1637252586938_teamliquid.png" },
+    { name:"NAVI",        region:"EMEA", rating:0, logo:"https://am-a.akamaihd.net/image?resize=3840:&f=http%3A%2F%2Fstatic.lolesports.com%2Fteams%2F1627386036528_Natus_Vincere_2021_lightmode.png" },
+    { name:"TH",          region:"EMEA", rating:0, logo:"https://am-a.akamaihd.net/image?resize=3840:&f=http%3A%2F%2Fstatic.lolesports.com%2Fteams%2F1674060672534_600px-Team_Heretics_2022_allmode1.png" },
+    { name:"VIT",         region:"EMEA", rating:0, logo:"https://am-a.akamaihd.net/image?resize=3840:&f=http%3A%2F%2Fstatic.lolesports.com%2Fteams%2F1722030793680_VITALITY_YELLOW.png" },
+    { name:"KC",          region:"EMEA", rating:0, logo:"https://am-a.akamaihd.net/image?resize=3840:&f=http%3A%2F%2Fstatic.lolesports.com%2Fteams%2F1651626649157_download1.png" },
+    { name:"FUT",         region:"EMEA", rating:0, logo:"https://am-a.akamaihd.net/image?resize=3840:&f=http%3A%2F%2Fstatic.lolesports.com%2Fteams%2F1644342678681_FUT_VRL_DARK.png" },
+    { name:"BBL",         region:"EMEA", rating:0, logo:"https://am-a.akamaihd.net/image?resize=3840:&f=http%3A%2F%2Fstatic.lolesports.com%2Fteams%2F1674060310685_BBL-GOLD-EMBLEM1.png" },
+    { name:"MKOI",        region:"EMEA", rating:0, logo:"https://am-a.akamaihd.net/image?resize=3840:&f=http%3A%2F%2Fstatic.lolesports.com%2Fteams%2F1734088118323_LOGOS_MKOI_BLUE.png" },
+    { name:"APK",         region:"EMEA", rating:0, logo:"https://am-a.akamaihd.net/image?resize=3840:&f=http%3A%2F%2Fstatic.lolesports.com%2Fteams%2F1673468188944_Apeks_Logomark_Orange1.png" },
+    { name:"M8",          region:"EMEA", rating:0, logo:"https://am-a.akamaihd.net/image?resize=3840:&f=http%3A%2F%2Fstatic.lolesports.com%2Fteams%2F1734098462992_M8Color_DarkBG.png" },
+    { name:"GX",          region:"EMEA", rating:0, logo:"https://am-a.akamaihd.net/image?resize=3840:&f=http%3A%2F%2Fstatic.lolesports.com%2Fteams%2F1706547566185_GX.png" },
+    { name:"PRX",         region:"PAC",  rating:0, logo:"https://am-a.akamaihd.net/image?resize=3840:&f=http%3A%2F%2Fstatic.lolesports.com%2Fteams%2F1630018120582_paper-rex-2021.png" },
+    { name:"DRX",         region:"PAC",  rating:0, logo:"https://am-a.akamaihd.net/image?resize=3840:&f=http%3A%2F%2Fstatic.lolesports.com%2Fteams%2F1705652820016_DRXwhite.png" },
+    { name:"GEN",         region:"PAC",  rating:0, logo:"https://am-a.akamaihd.net/image?resize=3840:&f=http%3A%2F%2Fstatic.lolesports.com%2Fteams%2F1678453609404_GenG_logo_200407-051.png" },
+    { name:"T1",          region:"PAC",  rating:0, logo:"https://am-a.akamaihd.net/image?resize=3840:&f=http%3A%2F%2Fstatic.lolesports.com%2Fteams%2F1677137430839_T1_infoboximage1.png" },
+    { name:"TS",          region:"PAC",  rating:0, logo:"https://am-a.akamaihd.net/image?resize=3840:&f=http%3A%2F%2Fstatic.lolesports.com%2Fteams%2F1636575342048_team-secret-on-dark.png" },
+    { name:"ZETA",        region:"PAC",  rating:0, logo:"https://am-a.akamaihd.net/image?resize=3840:&f=http%3A%2F%2Fstatic.lolesports.com%2Fteams%2F1630017899610_zeta.png" },
+    { name:"DFM",         region:"PAC",  rating:0, logo:"https://am-a.akamaihd.net/image?resize=3840:&f=http%3A%2F%2Fstatic.lolesports.com%2Fteams%2F1675669923678_190px-DetonatioN_FocusMe_2022_darkmode1.png" },
+    { name:"RRQ",         region:"PAC",  rating:0, logo:"https://am-a.akamaihd.net/image?resize=3840:&f=http%3A%2F%2Fstatic.lolesports.com%2Fteams%2F1707306458590_LOGO_RRQ_orange.png" },
+    { name:"TLN",         region:"PAC",  rating:0, logo:"https://am-a.akamaihd.net/image?resize=3840:&f=http%3A%2F%2Fstatic.lolesports.com%2Fteams%2F1674056858749_Talon_Esports_logo1.png" },
+    { name:"GE",          region:"PAC",  rating:0, logo:"https://am-a.akamaihd.net/image?resize=3840:&f=http%3A%2F%2Fstatic.lolesports.com%2Fteams%2F1677137854820_GERedandBlue-WhiteBG.png" },
+    { name:"BME",         region:"PAC",  rating:0, logo:"https://am-a.akamaihd.net/image?resize=3840:&f=http%3A%2F%2Fstatic.lolesports.com%2Fteams%2F1739254331177_boom.png" },
+    { name:"NS",          region:"PAC",  rating:0, logo:"https://am-a.akamaihd.net/image?resize=3840:&f=http%3A%2F%2Fstatic.lolesports.com%2Fteams%2F1674219422693_NS_.png" },
+    { name:"EDG",         region:"CN",   rating:0, logo:"https://am-a.akamaihd.net/image?resize=3840:&f=http%3A%2F%2Fstatic.lolesports.com%2Fteams%2F1735920597800_edg1.png" },
+    { name:"BLG",         region:"CN",   rating:0, logo:"https://am-a.akamaihd.net/image?resize=3840:&f=http%3A%2F%2Fstatic.lolesports.com%2Fteams%2F1707126028220_BLG.png" },
+    { name:"FPX",         region:"CN",   rating:0, logo:"https://am-a.akamaihd.net/image?resize=3840:&f=http%3A%2F%2Fstatic.lolesports.com%2Fteams%2F1644542485597_download38.png" },
+    { name:"TE",          region:"CN",   rating:0, logo:"https://am-a.akamaihd.net/image?resize=3840:&f=http%3A%2F%2Fstatic.lolesports.com%2Fteams%2F1736345448590_TE.png" },
+    { name:"DRG",         region:"CN",   rating:0, logo:"https://am-a.akamaihd.net/image?resize=3840:&f=http%3A%2F%2Fstatic.lolesports.com%2Fteams%2F1707126143797_DRG.png" },
+    { name:"WOL",         region:"CN",   rating:0, logo:"https://am-a.akamaihd.net/image?resize=3840:&f=http%3A%2F%2Fstatic.lolesports.com%2Fteams%2F1707126969882_WOL.png" },
+    { name:"NOVA",        region:"CN",   rating:0, logo:"https://am-a.akamaihd.net/image?resize=3840:&f=http%3A%2F%2Fstatic.lolesports.com%2Fteams%2F1741178535000_NOVA.png" },
+    { name:"TYL",         region:"CN",   rating:0, logo:"https://am-a.akamaihd.net/image?resize=3840:&f=http%3A%2F%2Fstatic.lolesports.com%2Fteams%2F1768990500116_TYLLOGO.png" },
+    { name:"AG",          region:"CN",   rating:0, logo:"https://am-a.akamaihd.net/image?resize=3840:&f=http%3A%2F%2Fstatic.lolesports.com%2Fteams%2F1707126806655_AG.png" },
+    { name:"TEC",         region:"CN",   rating:0, logo:"https://am-a.akamaihd.net/image?resize=3840:&f=http%3A%2F%2Fstatic.lolesports.com%2Fteams%2F1707127134615_TEC.png" },
+    { name:"XLG",         region:"CN",   rating:0, logo:"https://am-a.akamaihd.net/image?resize=3840:&f=http%3A%2F%2Fstatic.lolesports.com%2Fteams%2F1735920774181_XLGA.PNG" },
+    { name:"JDG",         region:"CN",   rating:0, logo:"https://am-a.akamaihd.net/image?resize=3840:&f=http%3A%2F%2Fstatic.lolesports.com%2Fteams%2F1707126862498_JDG.png" }
+];
+
+function getKFactor(phase) {
+    return { GROUPS:29, QUARTERS:49, SEMIS:67, FINAL:97 }[phase] || 40;
+}
+
+class KickoffSimulator {
+    constructor() {
+        this.legacyStats = this._load(ELO_KEY) || {};
+        this.tlStats     = this._load(TL_STATS_KEY) || { eloHistory:[], matches:[], headToHead:{} };
+        this.qualifiers  = this._load(QUALIFIER_KEY) || { AMER:[], EMEA:[], PAC:[], CN:[] };
+
+        // Active tournament state
+        this.region       = null;
+        this.teams        = [];
+        this.groups       = {};
+        this.schedule     = [];
+        this.knockoutMatches = [];
+        this.currentPhase = 'IDLE';
+        this.currentGroupRound = 1;
+        this.historyLogs  = [];
+        this.manualMatchPending = null;
+
+        const saved = this._load(KICKOFF_KEY);
+        if (saved && saved.region) {
+            this.region = saved.region;
+            this.teams  = saved.teams || [];
+            this.groups = saved.groups || {};
+            this.schedule = saved.schedule || [];
+            this.knockoutMatches = saved.knockoutMatches || [];
+            this.currentPhase = saved.currentPhase || 'IDLE';
+            this.currentGroupRound = saved.currentGroupRound || 1;
+            this.historyLogs = saved.historyLogs || [];
+            // Sync ELO
+            this.teams.forEach(t => { const l=this.legacyStats[t.name]; if(l) t.rating=l.elo; });
+            this.relinkObjects();
+        }
+
+        this.renderRegionSelector();
+        if (this.region && this.currentPhase !== 'IDLE') {
+            document.getElementById('activeSection').style.display = 'flex';
+            this.render(); this.updateButtons();
+            this._checkPendingTLMatch(); // reabre modal se havia partida TL pendente
+        }
+        this.renderLog();
+    }
+
+    _load(k)    { return DB.load(k); }
+    _save(k, v) { DB.save(k, v); }
+
+    saveGlobal(team) {
+        if (!this.legacyStats[team.name]) this.legacyStats[team.name] = { elo: team.rating, logo: team.logo };
+        this.legacyStats[team.name].elo  = team.rating;
+        this.legacyStats[team.name].logo = team.logo;
+        this._save(ELO_KEY, this.legacyStats);
+    }
+
+    saveTL() { this._save(TL_STATS_KEY, this.tlStats); }
+
+    save() {
+        this._save(KICKOFF_KEY, {
+            region: this.region, teams: this.teams, groups: this.groups,
+            schedule: this.schedule, knockoutMatches: this.knockoutMatches,
+            currentPhase: this.currentPhase, currentGroupRound: this.currentGroupRound,
+            historyLogs: this.historyLogs
+        });
+    }
+
+    relinkObjects() {
+        const find = id => this.teams.find(t => t.name===id||t.id===id) || { name:id||'?', logo:DEFAULT_LOGO, region:this.region, rating:0, wins:0, losses:0, points:0, status:'neutral' };
+        Object.keys(this.groups).forEach(g => { this.groups[g] = this.groups[g].map(t => find(t.name||t.id)); });
+        this.schedule.forEach(m => { m.t1=find(m.t1.name||m.t1.id); m.t2=find(m.t2.name||m.t2.id); if(m.winner) m.winner=find(m.winner.name||m.winner.id); });
+        this.knockoutMatches.forEach(m => { if(m.t1) m.t1=find(m.t1.name||m.t1.id); if(m.t2) m.t2=find(m.t2.name||m.t2.id); if(m.winner) m.winner=find(m.winner.name||m.winner.id); });
+    }
+
+    // ── Region selector ──────────────────────────────────────────────────────
+    renderRegionSelector() {
+        const sel = document.getElementById('regionSelector');
+        const banner = document.getElementById('statusBanner');
+        const regions = ['AMER','EMEA','PAC','CN'];
+
+        sel.innerHTML = regions.map(r => {
+            const done = this.qualifiers[r] && this.qualifiers[r].length === 2;
+            const qualNames = done ? this.qualifiers[r].map(q=>q.name).join(' + ') : '';
+            const isActive = this.region === r && this.currentPhase !== 'IDLE';
+            return `<div class="region-card ${r} ${done?'done':''} ${isActive?'active-region':''}" onclick="ko.selectRegion('${r}')">
+                ${done ? `<span class="region-done-badge">✓ CLASSIFICADOS</span>` : ''}
+                <div class="region-name ${r}">${r}</div>
+                <div class="region-teams-count">${REGION_LABELS[r]}</div>
+                <div class="region-teams-count">${ALL_TEAMS.filter(t=>t.region===r).length} times</div>
+                ${done ? `<div class="qualified-names">🎯 ${qualNames}</div>` : ''}
+            </div>`;
+        }).join('');
+
+        // Status banner
+        const done = regions.filter(r => this.qualifiers[r]?.length===2).length;
+        const allDone = done === 4;
+        banner.innerHTML = `
+            <span style="font-size:0.75rem; color:#666; text-transform:uppercase; letter-spacing:1px;">Kickoffs:</span>
+            ${regions.map(r => {
+                const isDone = this.qualifiers[r]?.length===2;
+                return `<div class="status-item"><div class="status-dot ${isDone?'dot-done':'dot-pending'}"></div><span style="color:${isDone?'var(--rank-s)':'#555'}">${r}</span></div>`;
+            }).join('')}
+            ${allDone ? `<button class="masters-btn" style="padding:6px 14px; font-size:0.75rem;" onclick="window.location.href='masters.html'">⚡ TODOS CLASSIFICADOS — ABRIR MASTERS</button>` : ''}
+        `;
+    }
+
+    selectRegion(region) {
+        // If there's an active tournament in another region, warn
+        if (this.region && this.region !== region && this.currentPhase !== 'IDLE' && this.currentPhase !== 'FINISHED') {
+            if (!confirm(`Você tem um Kickoff de ${this.region} em andamento.\nTrocar irá perder o progresso atual. Continuar?`)) return;
+        }
+        if (this.region === region && this.currentPhase !== 'IDLE' && this.currentPhase !== 'FINISHED') {
+            // Resume
+            document.getElementById('activeSection').style.display = 'flex';
+            this.render(); this.updateButtons();
+            return;
+        }
+        this.startRegion(region);
+    }
+
+    startRegion(region) {
+        this.region = region;
+        this.currentPhase = 'GROUPS';
+        this.currentGroupRound = 1;
+        this.historyLogs = [];
+
+        // Pool: all teams from this region, with ELO synced
+        const pool = ALL_TEAMS.filter(t => t.region === region).map(data => {
+            const leg = this.legacyStats[data.name] || {};
+            return { ...data, id: data.name, rating: leg.elo !== undefined ? leg.elo : data.rating, logo: leg.logo || data.logo || DEFAULT_LOGO, isManual: data.name === 'Team Liquid', wins:0, losses:0, points:0, status:'neutral', group:'' };
+        });
+
+        this.teams = pool;
+
+        // Groups: 3 groups of 4 for 12 teams, or 2 groups of 4 for 8 teams
+        const numGroups = Math.floor(this.teams.length / 4);
+        this.groups = this.assignGroups(numGroups);
+        this.schedule = this.generateSchedule();
+        this.knockoutMatches = [];
+
+        document.getElementById('mainTitle').innerText = `VCT KICKOFF — ${region}`;
+        document.getElementById('mainSubtitle').innerText = REGION_LABELS[region];
+        document.getElementById('activeSection').style.display = 'flex';
+
+        this.save(); this.render(); this.updateButtons(); this.renderRegionSelector();
+    }
+
+    assignGroups(numGroups) {
+        const letters = ['A','B','C'];
+        let shuffled = [...this.teams].sort(() => Math.random()-0.5);
+        let groups = {};
+        for (let i=0; i<numGroups; i++) {
+            const l = letters[i];
+            groups[l] = shuffled.slice(i*4, i*4+4);
+            groups[l].forEach(t => t.group = l);
+        }
+        return groups;
+    }
+
+    generateSchedule() {
+        let sched = [];
+        Object.keys(this.groups).forEach(g => {
+            const t = this.groups[g];
+            sched.push({t1:t[0],t2:t[1],group:g,round:1,played:false});
+            sched.push({t1:t[2],t2:t[3],group:g,round:1,played:false});
+            sched.push({t1:t[0],t2:t[2],group:g,round:2,played:false});
+            sched.push({t1:t[1],t2:t[3],group:g,round:2,played:false});
+            sched.push({t1:t[0],t2:t[3],group:g,round:3,played:false});
+            sched.push({t1:t[1],t2:t[2],group:g,round:3,played:false});
+        });
+        sched.sort((a,b) => a.round-b.round);
+        return sched;
+    }
+
+    // ── Simulation ───────────────────────────────────────────────────────────
+    getEffRating(t) {
+        let r = t.rating;
+        if (t.status==='fire') r+=40; if (t.status==='tilt') r-=80;
+        return r;
+    }
+
+    simMap(t1, t2) {
+        const r1=this.getEffRating(t1), r2=this.getEffRating(t2);
+        const chance = Math.max(5, Math.min(95, 100/(1+Math.pow(10,(r2-r1)/400))));
+        let winner, loser;
+        if (Math.random()*100 <= chance) { winner=t1; loser=t2; } else { winner=t2; loser=t1; }
+        let sW, sL;
+        if (Math.random() < (Math.abs(r1-r2)>150 ? 0.45 : 0.12)) { sW=13; sL=Math.floor(Math.random()*5); loser.status='tilt'; winner.status='fire'; }
+        else { sW=13; sL=Math.floor(Math.random()*6)+6; loser.status='neutral'; winner.status='neutral'; }
+        if (Math.random()>0.92) { sW=15; sL=13; }
+        return { winner, loser, sW, sL };
+    }
+
+    simSeries(match, bestOf) {
+        match.played = true;
+        let maps=[], w1=0, w2=0;
+        const wt = Math.ceil(bestOf/2);
+        while (w1<wt && w2<wt) { const r=this.simMap(match.t1,match.t2); if(r.winner.name===match.t1.name)w1++;else w2++; maps.push(r); }
+        const winner = w1>w2?match.t1:match.t2, loser = w1>w2?match.t2:match.t1;
+        this.resolveStats(winner, loser, `${Math.max(w1,w2)}-${Math.min(w1,w2)}`, maps, match);
+    }
+
+    resolveStats(winner, loser, score, maps, match) {
+        const K = getKFactor(this.currentPhase);
+
+        // ELO real: ganho proporcional à surpresa do resultado
+        const expected = 1 / (1 + Math.pow(10, (loser.rating - winner.rating) / 400));
+        const chance   = (expected * 100).toFixed(1);
+        const gain     = Math.round(K * (1 - expected));
+        const loss     = Math.round(K * expected);
+
+        winner.rating = Math.max(0, winner.rating + gain);
+        loser.rating  = Math.max(0, loser.rating  - loss);
+        this.saveGlobal(winner); this.saveGlobal(loser);
+        winner.wins++; winner.points += 3;
+        match.winner = winner; match.score = score;
+        const last = maps[maps.length-1];
+        const flavor = last.sW-last.sL>8 ? 'MASSACRE!' : last.sW>13 ? 'OVERTIME!' : 'Vitória Tática';
+        const mapsStr = maps.map(m=>`[${m.sW}-${m.sL}]`).join(' ');
+        this.historyLogs.unshift({ text:`<img src="${winner.logo||DEFAULT_LOGO}" style="width:12px;vertical-align:middle"> ${winner.name} <span style="color:#ff4655">${score}</span> ${loser.name}`, details:`${mapsStr} | K:${K} | ${chance}% → +${gain}/-${loss}`, flavor, isManual: winner.isManual||loser.isManual });
+
+        // TL career tracking
+        if (winner.isManual || loser.isManual) {
+            const tl  = winner.isManual ? winner : loser;
+            const opp = winner.isManual ? loser : winner;
+            const won = winner.isManual;
+            if (!this.tlStats.headToHead[opp.name]) this.tlStats.headToHead[opp.name] = { wins:0, losses:0, logo:opp.logo };
+            if (won) this.tlStats.headToHead[opp.name].wins++; else this.tlStats.headToHead[opp.name].losses++;
+            this.tlStats.matches.push({ opponent:opp.name, oppLogo:opp.logo, result:won?'W':'L', score, phase:`KICKOFF ${this.region} — ${this.getPhaseName()}`, season:`KO-${this.region}`, eloChange:won?gain:-loss, eloAfter:tl.rating, date:new Date().toLocaleDateString('pt-BR'), maps:mapsStr });
+            this.tlStats.eloHistory.push({ elo:tl.rating, season:`KO-${this.region}`, phase:this.getPhaseName(), date:new Date().toLocaleDateString('pt-BR') });
+            this.saveTL();
+        }
+    }
+
+    playRound() {
+        if (this.currentPhase === 'GROUPS') this.runGroupRound();
+        else if (!['IDLE','FINISHED'].includes(this.currentPhase)) this.runKnockout();
+    }
+
+    runGroupRound() {
+        this.teams.forEach(t => t.status='neutral');
+        const pending = this.schedule.filter(m => m.round===this.currentGroupRound && !m.played);
+        if (pending.length === 0) {
+            if (this.currentGroupRound < 3) { this.currentGroupRound++; this.save(); this.updateButtons(); return; }
+            else { this.advanceToKnockout(); return; }
+        }
+        const manual = pending.find(m => m.t1.isManual||m.t2.isManual);
+        if (manual) {
+            pending.forEach(m => { if(m!==manual) this.simSeries(m,3); });
+            this.save(); // salva outros resultados ANTES de abrir modal TL
+            this.manualMatchPending = manual;
+            this.openModal(manual, 3);
+        } else {
+            pending.forEach(m => this.simSeries(m,3));
+            const left = this.schedule.filter(m=>m.round===this.currentGroupRound&&!m.played).length;
+            if (left===0 && this.currentGroupRound<3) this.currentGroupRound++;
+            this.save(); this.render(); this.updateButtons();
+        }
+    }
+
+    runKnockout() {
+        const unplayed = this.knockoutMatches.filter(m=>m.phase===this.currentPhase&&!m.played);
+        if (unplayed.length===0) { this.advanceKnockoutPhase(); return; }
+        const bestOf = this.currentPhase==='FINAL'?5:3;
+        const manual = unplayed.find(m=>m.t1&&m.t2&&(m.t1.isManual||m.t2.isManual));
+        if (manual) {
+            const idx=unplayed.indexOf(manual);
+            for(let i=0;i<idx;i++) this.simSeries(unplayed[i],bestOf);
+            this.save(); // salva outros resultados ANTES de abrir modal TL
+            this.manualMatchPending=manual;
+            this.openModal(manual,bestOf);
+        } else {
+            unplayed.forEach(m=>this.simSeries(m,bestOf));
+            this.save(); this.render(); this.updateButtons();
+        }
+    }
+
+    advanceToKnockout() {
+        // Take top 2 from each group → build single elim bracket
+        let seeds = [];
+        Object.keys(this.groups).forEach(g => {
+            const t = [...this.groups[g]].sort((a,b)=>b.points-a.points||b.wins-a.wins||b.rating-a.rating);
+            seeds.push({ seed:1, group:g, team:t[0] });
+            seeds.push({ seed:2, group:g, team:t[1] });
+        });
+        // Seed 1 vs seed 2 of different groups: 1A vs 2B, 1B vs 2A, etc. (for 2 groups)
+        // For 3 groups (12 teams): 6 advance, quarterfinals
+        const advancers = seeds.map(s=>s.team);
+        advancers.forEach(t => t.qualified = true);
+
+        const numAdv = advancers.length;
+        this.knockoutMatches = [];
+
+        if (numAdv === 4) {
+            // 2 groups → semis → final
+            this.knockoutMatches = [
+                { phase:'SEMIS', t1:seeds[0].team, t2:seeds[3].team, nextMatchIdx:2 },
+                { phase:'SEMIS', t1:seeds[2].team, t2:seeds[1].team, nextMatchIdx:2 },
+                { phase:'FINAL', t1:null, t2:null, nextMatchIdx:null },
+            ].map(m=>({...m,played:false,winner:null,score:null}));
+            this.currentPhase='SEMIS';
+        } else {
+            // 3 groups → QF (6 teams, 1 gets bye? No: use top 2 of each = 6 → QF with bye for group winners)
+            // Simpler: group winners get bye to semis, runners-up play QFs
+            const winners = seeds.filter(s=>s.seed===1).map(s=>s.team);
+            const runners = seeds.filter(s=>s.seed===2).map(s=>s.team);
+            this.knockoutMatches = [
+                // QF: runner A vs runner B, winner faces winner C
+                { phase:'QUARTERS', t1:runners[0], t2:runners[1], nextMatchIdx:3 },
+                { phase:'QUARTERS', t1:runners[1], t2:runners[2], nextMatchIdx:4 }, // just use 2 QFs
+                // Actually simplify: top 3 group winners get byes, 3 runners play mini bracket
+                // Use: QF1: 2A vs 2C, QF2: winner vs 2B, SF: winners + group winners
+            ];
+            // Cleaner approach for 3 groups (6 advance): 2 QFs → 2 SFs → Final
+            this.knockoutMatches = [
+                { phase:'QUARTERS', t1:runners[0],  t2:runners[2],  nextMatchIdx:4 },
+                { phase:'QUARTERS', t1:runners[1],  t2:winners[2],  nextMatchIdx:5 },
+                { phase:'SEMIS',    t1:winners[0],  t2:null,        nextMatchIdx:6 },
+                { phase:'SEMIS',    t1:winners[1],  t2:null,        nextMatchIdx:6 },  // wait no
+                // Let's do it properly: 4 semis slots: winners[0], winners[1], and 2 QF winners
+                { phase:'SEMIS',    t1:null, t2:null, nextMatchIdx:6 },
+                { phase:'SEMIS',    t1:null, t2:null, nextMatchIdx:6 },
+                { phase:'FINAL',    t1:null, t2:null, nextMatchIdx:null },
+            ].map(m=>({...m,played:false,winner:null,score:null}));
+            // Fix semis seeding
+            this.knockoutMatches[2].t1 = winners[0];
+            this.knockoutMatches[3].t1 = winners[1];
+            this.knockoutMatches[0].nextMatchIdx = 3; // QF0 winner → semi3 t2
+            this.knockoutMatches[1].nextMatchIdx = 2; // QF1 winner → semi2 t2
+            this.currentPhase='QUARTERS';
+        }
+        this.save(); this.render(); this.updateButtons();
+    }
+
+    advanceKnockoutPhase() {
+        this.knockoutMatches.forEach((m,idx) => {
+            if (m.phase===this.currentPhase && m.played && m.winner && m.nextMatchIdx!==null) {
+                const next = this.knockoutMatches[m.nextMatchIdx];
+                if (next) { if (!next.t1) next.t1=m.winner; else next.t2=m.winner; }
+            }
+        });
+        const order = ['QUARTERS','SEMIS','FINAL'];
+        const i = order.indexOf(this.currentPhase);
+        if (this.currentPhase==='FINAL') { this.finishTournament(); return; }
+        this.currentPhase = order[i+1];
+        this.save(); this.render(); this.updateButtons();
+    }
+
+    // ── Qualify ──────────────────────────────────────────────────────────────
+    saveQualifiers() {
+        const finalMatch = this.knockoutMatches[this.knockoutMatches.length-1];
+        const champion  = finalMatch.winner;
+        const runnerUp  = champion.name===finalMatch.t1?.name ? finalMatch.t2 : finalMatch.t1;
+
+        const q1 = { name:champion.name,  logo:champion.logo,  rating:champion.rating,  region:this.region };
+        const q2 = { name:runnerUp.name,  logo:runnerUp.logo,  rating:runnerUp.rating,  region:this.region };
+
+        this.qualifiers[this.region] = [q1, q2];
+        this._save(QUALIFIER_KEY, this.qualifiers);
+
+        // Salva troféu se TL for campeão
+        if (champion.isManual) {
+            const trophies = this._load('tl_trophies_v1') || [];
+            trophies.push({ type:'KICKOFF', icon:'🎯', title:`Kickoff ${this.region}`, date:new Date().toLocaleDateString('pt-BR'), runnerUp: runnerUp?.name||'—' });
+            this._save('tl_trophies_v1', trophies);
+        }
+
+        this.currentPhase = 'FINISHED';
+        this.save();
+        this.renderRegionSelector();
+        this.updateButtons();
+        this.showQualifyOverlay(q1, q2);
+    }
+
+    showQualifyOverlay(q1, q2) {
+        const qdiv = document.getElementById('qualifyDisplay');
+        qdiv.style.display = 'block';
+        qdiv.innerHTML = `
+            <div class="qualify-overlay">
+                <h2>🎯 ${this.region} — CLASSIFICADOS PARA O MASTERS</h2>
+                <div class="qual-team-list">
+                    <div class="qual-team-card">
+                        <img src="${q1.logo||DEFAULT_LOGO}">
+                        <div class="qname">${q1.name}</div>
+                        <div class="qelo">ELO: ${q1.rating}</div>
+                        <div style="font-size:0.7rem; color:var(--gold);">🥇 Campeão do Kickoff</div>
+                    </div>
+                    <div class="qual-team-card">
+                        <img src="${q2.logo||DEFAULT_LOGO}">
+                        <div class="qname">${q2.name}</div>
+                        <div class="qelo">ELO: ${q2.rating}</div>
+                        <div style="font-size:0.7rem; color:var(--silver);">🥈 Vice-campeão</div>
+                    </div>
+                </div>
+                <p style="color:#666; font-size:0.82rem;">ELO acumulado salvo — eles chegam ao Masters com esse rating.</p>
+            </div>`;
+    }
+
+    finishTournament() {
+        this.currentPhase = 'FINISHED';
+        this.save(); this.render(); this.updateButtons();
+        document.getElementById('btnQualify').style.display = 'block';
+    }
+
+    // ── Render ───────────────────────────────────────────────────────────────
+    getPhaseName() {
+        const map = { IDLE:'AGUARDANDO', GROUPS:`FASE DE GRUPOS (R${this.currentGroupRound})`, QUARTERS:'QUARTAS DE FINAL', SEMIS:'SEMIFINAL', FINAL:'GRANDE FINAL', FINISHED:'KICKOFF ENCERRADO' };
+        return map[this.currentPhase] || this.currentPhase;
+    }
+
+    getTier(elo) {
+        if(elo>=1000) return '<span style="color:var(--rank-s)">S+</span>';
+        if(elo>=800)  return '<span style="color:var(--rank-s)">S</span>';
+        if(elo>=600)  return '<span style="color:var(--rank-a)">A</span>';
+        if(elo>=400)  return '<span style="color:var(--rank-b)">B</span>';
+        if(elo>=200)  return '<span style="color:var(--rank-c)">C</span>';
+        return '<span style="color:var(--rank-d)">D</span>';
+    }
+
+    render() {
+        document.getElementById('phaseDisplay').innerText = this.getPhaseName();
+        const c = document.getElementById('mainDisplay');
+        c.innerHTML = '';
+
+        if (this.currentPhase === 'GROUPS') {
+            c.className = 'main-container';
+            Object.keys(this.groups).forEach(g => {
+                const t = [...this.groups[g]].sort((a,b)=>b.points-a.points||b.wins-a.wins);
+                c.innerHTML += `<div class="group-card"><h3>GRUPO ${g}</h3><table><thead><tr><th>Time</th><th>Pts</th><th>Tier</th></tr></thead><tbody>${
+                    t.map((tm,i) => `<tr class="${tm.isManual?'manual-team-row':''} ${i<2?'qualified-row':''}">
+                        <td><img src="${tm.logo||DEFAULT_LOGO}" class="team-logo">${tm.name}</td>
+                        <td>${tm.points}</td><td>${this.getTier(tm.rating)}</td>
+                    </tr>`).join('')
+                }</tbody></table></div>`;
+            });
+            const played = this.schedule.filter(m=>m.played).length;
+            document.getElementById('progressBar').style.width = (played/this.schedule.length)*100+'%';
+        } else if (!['IDLE','FINISHED'].includes(this.currentPhase)) {
+            c.className = 'bracket-container';
+            const renderM = m => {
+                const isTL = m.t1?.isManual||m.t2?.isManual;
+                const t1W  = m.winner?.name===m.t1?.name;
+                const t2W  = m.winner?.name===m.t2?.name;
+                return `<div class="match-card ${m.played?'':'active'} ${isTL?'tl-match':''}">
+                    <div class="match-team ${t1W?(m.t1?.isManual?'tl-winner':'winner'):''}"><div class="team-name-flex"><img src="${m.t1?.logo||DEFAULT_LOGO}" class="team-logo">${m.t1?m.t1.name:'...'}</div></div>
+                    <div class="match-vs">VS</div>
+                    <div class="match-team ${t2W?(m.t2?.isManual?'tl-winner':'winner'):''}"><div class="team-name-flex"><img src="${m.t2?.logo||DEFAULT_LOGO}" class="team-logo">${m.t2?m.t2.name:'...'}</div></div>
+                    ${m.score?`<div class="match-score">${m.score}</div>`:''}
+                </div>`;
+            };
+            let html='';
+            const phases = ['QUARTERS','SEMIS','FINAL'].filter(p=>this.knockoutMatches.some(m=>m.phase===p));
+            const labels = { QUARTERS:'Quartas', SEMIS:'Semis', FINAL:'FINAL' };
+            phases.forEach(p => { html+=`<div class="bracket-column"><div class="bracket-header">${labels[p]}</div>${this.knockoutMatches.filter(m=>m.phase===p).map(renderM).join('')}</div>`; });
+            c.innerHTML = html;
+            document.getElementById('progressBar').style.width = '100%';
+        }
+        this.renderLog();
+    }
+
+    renderLog() {
+        document.getElementById('gameLog').innerHTML = this.historyLogs.map(l =>
+            `<div class="log-entry ${l.isManual?'tl-log-entry':''}"><div>${l.text}</div><div class="flavor-text">${l.details} | ${l.flavor||''}</div></div>`
+        ).join('');
+    }
+
+    updateButtons() {
+        const btnPlay    = document.getElementById('btnPlay');
+        const btnQualify = document.getElementById('btnQualify');
+        const btnMasters = document.getElementById('btnMasters');
+        const allDone    = ['AMER','EMEA','PAC','CN'].every(r=>this.qualifiers[r]?.length===2);
+
+        if (this.currentPhase==='FINISHED') {
+            btnPlay.disabled = true; btnPlay.innerText = 'KICKOFF ENCERRADO';
+            const alreadySaved = this.qualifiers[this.region]?.length===2;
+            btnQualify.style.display = alreadySaved ? 'none' : 'block';
+        } else if (this.manualMatchPending) {
+            btnPlay.disabled = true;
+            btnPlay.innerText = '⏳ AGUARDANDO RESULTADO DA TL';
+            btnQualify.style.display = 'none';
+            // Botão para reabrir modal se foi fechado
+            document.getElementById('btnReopenModal').style.display = 'inline-block';
+        } else {
+            btnPlay.disabled = false;
+            document.getElementById('btnReopenModal').style.display = 'none';
+            const pending = this.currentPhase==='GROUPS' && this.schedule.filter(m=>m.round===this.currentGroupRound&&!m.played).length===0;
+            btnPlay.innerText = pending ? '▶ AVANÇAR RODADA' : '⚔ PRÓXIMA BATALHA';
+            btnQualify.style.display = 'none';
+        }
+        btnMasters.style.display = allDone ? 'block' : 'none';
+    }
+
+    // ── Manual Match Modal ───────────────────────────────────────────────────
+    openModal(match, bestOf) {
+        const opp = match.t1.isManual ? match.t2 : match.t1;
+        const man = match.t1.isManual ? match.t1 : match.t2;
+        const K   = getKFactor(this.currentPhase);
+        const chance = (100/(1+Math.pow(10,(opp.rating-man.rating)/400))).toFixed(1);
+        const h2h = this.tlStats.headToHead[opp.name]||{wins:0,losses:0};
+
+        document.getElementById('modalOpponent').innerText = opp.name;
+        document.getElementById('modLogoManual').src = man.logo||DEFAULT_LOGO;
+        document.getElementById('modLogoOpp').src   = opp.logo||DEFAULT_LOGO;
+        document.getElementById('manualPhaseTitle').innerText = `${this.getPhaseName()} — KICKOFF ${this.region}`;
+        document.getElementById('kFactorBadge').innerText = `K: ±${K} ELO`;
+        document.getElementById('prematchInfo').innerHTML = `
+            <h4>📊 Informações Pré-Partida</h4>
+            <div class="prematch-row">
+                <div class="prematch-stat"><span class="pval">${chance}%</span><span class="plbl">Chance Vitória</span></div>
+                <div class="prematch-stat"><span class="pval">${man.rating}</span><span class="plbl">Seu ELO</span></div>
+                <div class="prematch-stat"><span class="pval">${opp.rating}</span><span class="plbl">ELO Oponente</span></div>
+                <div class="prematch-stat"><span class="pval ${h2h.wins>h2h.losses?'':'result-l'}">${h2h.wins}W—${h2h.losses}L</span><span class="plbl">H2H${!h2h.wins&&!h2h.losses?' (1º encontro)':''}</span></div>
+            </div>
+            <div class="win-chance-bar"><div class="win-chance-fill" style="width:${chance}%"></div></div>`;
+
+        const c = document.getElementById('mapsContainer'); c.innerHTML='';
+        for(let i=1;i<=bestOf;i++) c.innerHTML+=`<div class="map-row"><span style="width:55px;text-align:right;color:#666;font-size:0.82rem;">MAP ${i}</span><input type="number" id="m${i}_f" placeholder="?" min="0" max="30"><span style="color:#555">—</span><input type="number" id="m${i}_e" placeholder="?" min="0" max="30"></div>`;
+
+        this.manualMatchPending = match;
+        this.manualMatchPending.bestOf = bestOf;
+        document.getElementById('manualModal').style.display='flex';
+    }
+
+    confirmManualMatch() {
+        const bestOf = this.manualMatchPending.bestOf||3;
+        let maps=[],wM=0,wE=0; const wt=Math.ceil(bestOf/2);
+        for(let i=1;i<=bestOf;i++){
+            if(wM>=wt||wE>=wt) break;
+            const vf=document.getElementById(`m${i}_f`).value, ve=document.getElementById(`m${i}_e`).value;
+            if(vf===''||ve===''){alert(`Preencha o Mapa ${i}`);return;}
+            const s1=parseInt(vf),s2=parseInt(ve);
+            if(isNaN(s1)||isNaN(s2)||s1<0||s2<0){alert(`Placar inválido no Mapa ${i}`);return;}
+            if(s1>s2)wM++;else wE++;
+            maps.push({sW:Math.max(s1,s2),sL:Math.min(s1,s2)});
+        }
+        if(wM<wt&&wE<wt){alert('Série indefinida!');return;}
+        const match=this.manualMatchPending;
+        const manual=match.t1.isManual?match.t1:match.t2, enemy=match.t1.isManual?match.t2:match.t1;
+        const winner=wM>wE?manual:enemy, loser=wM>wE?enemy:manual;
+        match.played=true;
+        this.resolveStats(winner,loser,`${Math.max(wM,wE)}-${Math.min(wM,wE)}`,maps,match);
+        this.closeModal();
+        if(this.currentPhase==='GROUPS'){
+            const left=this.schedule.filter(m=>m.round===this.currentGroupRound&&!m.played).length;
+            if(left===0&&this.currentGroupRound<3)this.currentGroupRound++;
+        }
+        this.save(); this.render(); this.updateButtons();
+    }
+
+    closeModal() {
+        document.getElementById('manualModal').style.display = 'none';
+    }
+
+    _checkPendingTLMatch() {
+        if (['IDLE','FINISHED'].includes(this.currentPhase)) return;
+        let match = null, bestOf = 3;
+        if (this.currentPhase === 'GROUPS') {
+            match = this.schedule.find(m => !m.played && m.round === this.currentGroupRound && (m.t1?.isManual || m.t2?.isManual));
+        } else {
+            bestOf = this.currentPhase === 'FINAL' ? 5 : 3;
+            match = this.knockoutMatches.find(m => !m.played && m.phase === this.currentPhase && m.t1 && m.t2 && (m.t1?.isManual || m.t2?.isManual));
+        }
+        if (match) {
+            this.manualMatchPending = match;
+            setTimeout(() => this.openModal(match, bestOf), 250);
+        }
+    }
+
+    openCareerModal() {
+        this.switchCareerTab('overview', document.querySelector('#careerModal .career-tab-btn.active') || document.querySelector('#careerModal .career-tab-btn'));
+        document.getElementById('careerModal').style.display = 'flex';
+    }
+
+    switchCareerTab(tab, el) {
+        document.querySelectorAll('#careerModal .career-tab-btn').forEach(t => t.classList.remove('active'));
+        if (el) el.classList.add('active');
+        const body = document.getElementById('careerBodyKO');
+        const m = this.tlStats.matches;
+        const wins = m.filter(x=>x.result==='W').length, losses = m.filter(x=>x.result==='L').length;
+        const total = wins+losses, wr = total>0?((wins/total)*100).toFixed(1):'—';
+        const curElo = this.legacyStats['Team Liquid']?.elo ?? 0;
+        const peakElo = this.tlStats.eloHistory.length ? Math.max(...this.tlStats.eloHistory.map(e=>e.elo)) : curElo;
+
+        if (tab === 'overview') {
+            body.innerHTML = `
+                <div class="stat-cards">
+                    <div class="stat-card"><div class="val">${curElo}</div><div class="lbl">ELO Atual</div></div>
+                    <div class="stat-card gold"><div class="val">${peakElo}</div><div class="lbl">ELO Máximo</div></div>
+                    <div class="stat-card"><div class="val">${wr}%</div><div class="lbl">Win Rate</div></div>
+                    <div class="stat-card"><div class="val">${wins}W/${losses}L</div><div class="lbl">Total Partidas</div></div>
+                </div>
+                <div class="chart-container"><h3>📈 Evolução ELO (todos os torneios)</h3><canvas id="eloChartKO"></canvas></div>`;
+            this._drawChart();
+        } else if (tab === 'history') {
+            const rows = [...m].reverse().map(x=>`
+                <tr>
+                    <td style="color:#555;font-size:0.72rem;">${x.date}</td>
+                    <td style="font-size:0.7rem;color:#888;">${x.season||'—'}</td>
+                    <td><img src="${x.oppLogo||DEFAULT_LOGO}" style="width:16px;height:16px;object-fit:contain;vertical-align:middle;margin-right:4px">${x.opponent}</td>
+                    <td class="${x.result==='W'?'result-w':'result-l'}">${x.result==='W'?'✓ WIN':'✗ LOSS'}</td>
+                    <td style="font-family:monospace">${x.score}</td>
+                    <td style="font-size:0.7rem;color:#666;">${x.phase||'—'}</td>
+                    <td class="${x.eloChange>0?'elo-up':'elo-down'}">${x.eloChange>0?'+':''}${x.eloChange}→${x.eloAfter}</td>
+                </tr>`).join('');
+            body.innerHTML = `<div style="max-height:420px;overflow-y:auto"><table class="history-table"><thead><tr><th>Data</th><th>Torneio</th><th>Oponente</th><th>Resultado</th><th>Score</th><th>Fase</th><th>ELO</th></tr></thead><tbody>${rows||'<tr><td colspan="7" style="text-align:center;color:#555;padding:30px">Nenhuma partida ainda</td></tr>'}</tbody></table></div>`;
+        } else if (tab === 'h2h') {
+            const h2h = this.tlStats.headToHead;
+            const entries = Object.entries(h2h).map(([name,data])=>({name,...data,total:data.wins+data.losses,wr:data.wins+data.losses>0?Math.round((data.wins/(data.wins+data.losses))*100):0})).sort((a,b)=>b.total-a.total);
+            const rows = entries.map(e=>`
+                <tr>
+                    <td><img src="${e.logo||DEFAULT_LOGO}" style="width:18px;height:18px;object-fit:contain;vertical-align:middle;margin-right:5px">${e.name}</td>
+                    <td class="result-w">${e.wins}W</td>
+                    <td class="result-l">${e.losses}L</td>
+                    <td>${e.total}</td>
+                    <td><span style="font-family:monospace;font-weight:bold;color:${e.wr>=50?'var(--rank-s)':'var(--val-red)'}">${e.wr}%</span><span class="win-bar-bg"><span class="win-bar-fill" style="width:${e.wr}%"></span></span></td>
+                </tr>`).join('');
+            body.innerHTML = `<div style="max-height:420px;overflow-y:auto"><table class="h2h-table"><thead><tr><th>Time</th><th>Wins</th><th>Losses</th><th>Total</th><th>Win Rate</th></tr></thead><tbody>${rows||'<tr><td colspan="5" style="text-align:center;color:#555;padding:30px">Nenhum confronto ainda</td></tr>'}</tbody></table></div>`;
+        }
+    }
+
+    _drawChart() {
+        requestAnimationFrame(() => {
+            const canvas = document.getElementById('eloChartKO'); if (!canvas) return;
+            const data = this.tlStats.eloHistory, ctx = canvas.getContext('2d');
+            const W = canvas.offsetWidth||600, H = 180; canvas.width=W; canvas.height=H;
+            const pad = {top:20,bottom:25,left:48,right:15};
+            ctx.clearRect(0,0,W,H);
+            if (data.length < 2) { ctx.fillStyle='#6a8fa8'; ctx.font='12px Segoe UI'; ctx.textAlign='center'; ctx.fillText('Jogue mais partidas para ver o gráfico',W/2,H/2); return; }
+            const elos=data.map(d=>d.elo), minE=Math.max(0,Math.min(...elos)-50), maxE=Math.max(...elos)+50, range=maxE-minE||1;
+            const iW=W-pad.left-pad.right, iH=H-pad.top-pad.bottom;
+            const tx=i=>pad.left+(i/(data.length-1))*iW, ty=e=>pad.top+iH-((e-minE)/range)*iH;
+            for(let i=0;i<=3;i++){const y=pad.top+(i/3)*iH;ctx.strokeStyle='#1e3050';ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(pad.left,y);ctx.lineTo(pad.left+iW,y);ctx.stroke();ctx.fillStyle='#6a8fa8';ctx.font='9px Consolas';ctx.textAlign='right';ctx.fillText(Math.round(maxE-(i/3)*range),pad.left-4,y+3);}
+            const grad=ctx.createLinearGradient(0,pad.top,0,pad.top+iH); grad.addColorStop(0,'rgba(0,174,255,0.25)'); grad.addColorStop(1,'rgba(0,174,255,0.01)');
+            ctx.beginPath();ctx.moveTo(tx(0),ty(elos[0]));data.forEach((_,i)=>ctx.lineTo(tx(i),ty(elos[i])));ctx.lineTo(tx(data.length-1),pad.top+iH);ctx.lineTo(tx(0),pad.top+iH);ctx.closePath();ctx.fillStyle=grad;ctx.fill();
+            ctx.beginPath();ctx.moveTo(tx(0),ty(elos[0]));data.forEach((_,i)=>ctx.lineTo(tx(i),ty(elos[i])));ctx.strokeStyle='#00aeff';ctx.lineWidth=2;ctx.stroke();
+            const pi=elos.indexOf(Math.max(...elos));ctx.fillStyle='var(--gold)';ctx.font='bold 9px Segoe UI';ctx.textAlign='center';ctx.fillText(`PEAK:${elos[pi]}`,tx(pi),ty(elos[pi])-8);
+            let ls=data[0]?.season;data.forEach((d,i)=>{if(d.season!==ls){ctx.strokeStyle='rgba(255,70,85,0.3)';ctx.lineWidth=1;ctx.setLineDash([3,3]);ctx.beginPath();ctx.moveTo(tx(i),pad.top);ctx.lineTo(tx(i),pad.top+iH);ctx.stroke();ctx.setLineDash([]);ctx.fillStyle='rgba(255,70,85,0.7)';ctx.font='8px Segoe UI';ctx.textAlign='left';ctx.fillText(d.season,tx(i)+2,pad.top+9);ls=d.season;}});
+        });
+    }
+
+    resetRegion() {
+        if (confirm('Resetar torneio atual? O ELO já ganho será mantido.')) {
+            this.region=null; this.teams=[]; this.groups={}; this.schedule=[]; this.knockoutMatches=[];
+            this.currentPhase='IDLE'; this.historyLogs=[];
+            this._save(KICKOFF_KEY, null);
+            document.getElementById('activeSection').style.display='none';
+            document.getElementById('qualifyDisplay').style.display='none';
+            document.getElementById('mainTitle').innerText='VCT KICKOFF';
+            document.getElementById('mainSubtitle').innerText='Selecione uma região para iniciar a classificatória';
+            this.renderRegionSelector(); this.renderLog();
+        }
+    }
+
+    resetAll() {
+        if (confirm('WIPE TOTAL?\nApaga qualificados, ELO e carreira TL de todos os torneios.')) {
+            DB.removeAll([ELO_KEY, QUALIFIER_KEY, TL_STATS_KEY, KICKOFF_KEY]);
+            location.reload();
+        }
+    }
+}
+
+let ko;
+DB.init().then(() => { ko = new KickoffSimulator(); });
+</script>
+</body>
+</html>

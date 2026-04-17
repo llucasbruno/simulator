@@ -1,0 +1,497 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Team Liquid — Sala de Troféus</title>
+    <style>
+        :root {
+            --liquid-blue: #00aeff;
+            --liquid-dark: #0a192f;
+            --val-dark: #09090b;
+            --val-white: #ece8e1;
+            --gold: #ffd700;
+            --champ-gold: #cfa861;
+            --masters-purple: #7c24d4;
+            --kickoff-orange: #ff5e00;
+            --prime-red: #ff4655;
+            --rank-s: #42f590;
+        }
+
+        * { box-sizing: border-box; }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: var(--val-dark);
+            color: var(--val-white);
+            margin: 0; padding: 20px;
+            min-height: 100vh;
+            background-image: radial-gradient(circle at top center, var(--liquid-dark), var(--val-dark) 80%);
+        }
+
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #111; }
+        ::-webkit-scrollbar-thumb { background: var(--liquid-blue); border-radius: 4px; }
+
+        /* ── HEADER ─────────────────────────────────────── */
+        .header {
+            display: flex; flex-direction: column; align-items: center;
+            margin-bottom: 40px; margin-top: 20px; text-align: center;
+            animation: fadeIn 0.8s ease-out;
+        }
+
+        .tl-logo { width: 100px; height: 100px; object-fit: contain;
+            filter: drop-shadow(0 0 20px rgba(0,174,255,0.6)); margin-bottom: 15px; }
+
+        h1 { text-transform: uppercase; font-size: 2.8rem; letter-spacing: 5px; margin: 0; }
+        h1 span { color: var(--liquid-blue); text-shadow: 0 0 15px rgba(0,174,255,0.5); }
+
+        /* ── ELO + STATS BAR ─────────────────────────────── */
+        .stats-bar {
+            display: flex; gap: 20px; flex-wrap: wrap; justify-content: center;
+            margin-top: 20px; margin-bottom: 10px;
+        }
+
+        .stat-pill {
+            background: rgba(0,174,255,0.08); border: 1px solid rgba(0,174,255,0.3);
+            padding: 10px 22px; border-radius: 50px;
+            font-size: 0.85rem; font-weight: bold; letter-spacing: 1px;
+            display: flex; align-items: center; gap: 8px;
+        }
+
+        .stat-pill .val { color: var(--gold); font-family: 'Consolas', monospace; font-size: 1.2rem; }
+        .stat-pill.green .val { color: var(--rank-s); }
+        .stat-pill.red   .val { color: var(--prime-red); }
+
+        /* ── SECTION TITLES ──────────────────────────────── */
+        .section-title {
+            width: 100%; max-width: 1200px; font-size: 1.4rem;
+            text-transform: uppercase; letter-spacing: 2px;
+            margin: 40px auto 18px; padding-bottom: 10px;
+            border-bottom: 2px solid rgba(0,174,255,0.2);
+            display: flex; align-items: center; gap: 12px;
+        }
+
+        /* ── ELO CHART ───────────────────────────────────── */
+        .chart-wrap {
+            width: 100%; max-width: 1200px; margin: 0 auto 10px;
+            background: #0a1222; border: 1px solid #1e3050; border-radius: 8px; padding: 18px;
+        }
+
+        #eloChart { width: 100%; height: 200px; display: block; }
+
+        /* ── SEASON HISTORY TABLE ────────────────────────── */
+        .history-wrap {
+            width: 100%; max-width: 1200px; margin: 0 auto;
+            background: #0d1117; border: 1px solid #1e3050; border-radius: 8px;
+            overflow: hidden; margin-bottom: 10px;
+        }
+
+        .history-table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
+        .history-table th { background: #0a1628; color: #6a8fa8; font-size: 0.68rem;
+            text-transform: uppercase; padding: 10px 12px; text-align: left; font-weight: normal; }
+        .history-table td { padding: 9px 12px; border-bottom: 1px solid #111;
+            vertical-align: middle; }
+        .history-table tr:last-child td { border-bottom: none; }
+        .history-table tr:hover td { background: rgba(0,174,255,0.04); }
+        .rw { color: var(--rank-s); font-family: monospace; font-weight: bold; }
+        .rl { color: var(--prime-red); font-family: monospace; font-weight: bold; }
+        .eu { color: var(--rank-s); font-family: monospace; }
+        .ed { color: var(--prime-red); font-family: monospace; }
+
+        /* ── H2H ─────────────────────────────────────────── */
+        .h2h-grid {
+            display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+            gap: 10px; width: 100%; max-width: 1200px; margin: 0 auto;
+        }
+
+        .h2h-card {
+            background: #0d1117; border: 1px solid #1e3050; border-radius: 6px;
+            padding: 12px 14px; display: flex; align-items: center; gap: 10px;
+        }
+
+        .h2h-card img { width: 28px; height: 28px; object-fit: contain; }
+        .h2h-name { font-size: 0.82rem; font-weight: bold; flex: 1; }
+        .h2h-score { font-family: monospace; font-size: 0.82rem; }
+        .h2h-wr { font-size: 0.72rem; color: #6a8fa8; margin-top: 1px; }
+        .wbar { background: #111; border-radius: 10px; height: 4px; overflow: hidden; margin-top: 4px; }
+        .wbar-fill { height: 100%; border-radius: 10px; background: var(--liquid-blue); }
+
+        /* ── ROSTER ──────────────────────────────────────── */
+        .roster-grid {
+            display: flex; flex-wrap: wrap; gap: 18px;
+            width: 100%; max-width: 1200px; margin: 0 auto; justify-content: center;
+        }
+
+        .player-card {
+            background: linear-gradient(180deg, #0b1a36, #050b14);
+            border-radius: 12px; width: 200px; overflow: hidden;
+            border: 1px solid rgba(0,174,255,0.2);
+            box-shadow: 0 10px 20px rgba(0,0,0,0.5);
+            transition: all 0.3s;
+        }
+
+        .player-card:hover { transform: translateY(-6px); border-color: var(--liquid-blue); box-shadow: 0 15px 30px rgba(0,174,255,0.25); }
+
+        .player-img-wrap { width: 100%; height: 240px; overflow: hidden; background: radial-gradient(circle, rgba(0,174,255,0.08), transparent 70%); }
+        .player-img { width: 100%; height: 100%; object-fit: cover; object-position: top;
+            -webkit-mask-image: linear-gradient(to bottom, black 65%, transparent 100%);
+            mask-image: linear-gradient(to bottom, black 65%, transparent 100%); }
+        .player-img.fallback { object-fit: contain; padding: 30px; -webkit-mask-image: none; mask-image: none; opacity: 0.8; }
+        .player-info { padding: 12px 14px; }
+        .player-name { font-size: 1.4rem; font-weight: 900; color: #fff; margin: 0 0 6px; }
+        .player-desc { font-size: 0.76rem; color: #8a9abf; line-height: 1.5; margin: 0; }
+
+        /* ── TROPHY ROOM ─────────────────────────────────── */
+        .trophy-grid {
+            display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+            gap: 20px; width: 100%; max-width: 1200px; margin: 0 auto;
+        }
+
+        .trophy-card {
+            background: #111; border-radius: 12px; padding: 28px 18px;
+            display: flex; flex-direction: column; align-items: center; text-align: center;
+            position: relative; overflow: hidden; transition: transform 0.3s;
+            box-shadow: 0 8px 25px rgba(0,0,0,0.5); border-top: 4px solid #333;
+        }
+
+        .trophy-card:hover { transform: translateY(-8px); }
+        .trophy-card::before {
+            content: ''; position: absolute; top: -50%; left: -50%;
+            width: 200%; height: 200%;
+            background: radial-gradient(circle, var(--glow) 0%, transparent 60%);
+            z-index: 0;
+        }
+
+        .trophy-icon { font-size: 3.5rem; margin-bottom: 12px; z-index: 1; }
+        .trophy-title { font-size: 1.1rem; font-weight: 900; margin: 8px 0 4px;
+            text-transform: uppercase; letter-spacing: 1px; z-index: 1; }
+        .trophy-date { font-size: 0.72rem; color: #888; letter-spacing: 1px; z-index: 1; }
+        .trophy-vice { font-size: 0.7rem; color: #666; margin-top: 4px; z-index: 1; }
+
+        .th-CHAMPIONS { border-top-color: var(--champ-gold); --glow: rgba(207,168,97,0.08); }
+        .th-CHAMPIONS:hover { box-shadow: 0 10px 40px rgba(207,168,97,0.2); }
+        .th-CHAMPIONS .trophy-title { color: var(--champ-gold); }
+
+        .th-MASTERS { border-top-color: var(--masters-purple); --glow: rgba(124,36,212,0.08); }
+        .th-MASTERS:hover { box-shadow: 0 10px 40px rgba(124,36,212,0.2); }
+        .th-MASTERS .trophy-title { color: #b76bf0; }
+
+        .th-KICKOFF { border-top-color: var(--kickoff-orange); --glow: rgba(255,94,0,0.08); }
+        .th-KICKOFF:hover { box-shadow: 0 10px 40px rgba(255,94,0,0.2); }
+        .th-KICKOFF .trophy-title { color: var(--kickoff-orange); }
+
+        .th-PRIME { border-top-color: var(--prime-red); --glow: rgba(255,70,85,0.08); }
+        .th-PRIME:hover { box-shadow: 0 10px 40px rgba(255,70,85,0.2); }
+        .th-PRIME .trophy-title { color: var(--prime-red); }
+
+        /* ── NAV LINKS ───────────────────────────────────── */
+        .nav-links {
+            display: flex; gap: 12px; flex-wrap: wrap; justify-content: center;
+            margin: 0 auto 30px; max-width: 1200px;
+        }
+
+        .nav-links a {
+            background: #111; border: 1px solid #222; color: #888;
+            padding: 8px 18px; border-radius: 4px; text-decoration: none;
+            font-size: 0.78rem; font-weight: bold; text-transform: uppercase; letter-spacing: 1px;
+            transition: all 0.2s;
+        }
+
+        .nav-links a:hover { border-color: var(--liquid-blue); color: var(--liquid-blue); }
+
+        .empty-state { grid-column: 1/-1; text-align: center; color: #444;
+            padding: 50px; border: 1px dashed #222; border-radius: 8px; font-size: 1rem; }
+
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(-15px); } to { opacity: 1; transform: translateY(0); } }
+    </style>
+    <script type="module" src="db.js"></script>
+    <script type="module" src="navbar.js"></script>
+</head>
+<body>
+
+<!-- HEADER -->
+<div class="header">
+    <img src="https://am-a.akamaihd.net/image?resize=3840:&f=http%3A%2F%2Fstatic.lolesports.com%2Fteams%2F1637252586938_teamliquid.png" class="tl-logo" alt="TL">
+    <h1>Team <span>Liquid</span></h1>
+    <div class="stats-bar" id="statsBar"></div>
+</div>
+
+<!-- NAV -->
+<div class="nav-links">
+    <a href="calibracao.html">⚙ Calibração</a>
+    <a href="kickoff.html">🎯 Kickoff</a>
+    <a href="masters.html">⚔️ Masters</a>
+    <a href="Champion_MSI_CAREER_EDITION.html">🏆 Champion</a>
+</div>
+
+<!-- ELO HISTORY CHART -->
+<div class="section-title" style="max-width:1200px;margin-left:auto;margin-right:auto;">
+    📈 Evolução ELO — Carreira Completa
+</div>
+<div class="chart-wrap">
+    <canvas id="eloChart"></canvas>
+</div>
+
+<!-- MATCH HISTORY -->
+<div class="section-title" style="max-width:1200px;margin-left:auto;margin-right:auto;">
+    📋 Histórico de Partidas
+</div>
+<div class="history-wrap">
+    <div style="max-height:380px;overflow-y:auto;">
+        <table class="history-table" id="historyTable">
+            <thead><tr>
+                <th>Data</th><th>Torneio</th><th>Oponente</th>
+                <th>Resultado</th><th>Score</th><th>Fase</th><th>ELO</th>
+            </tr></thead>
+            <tbody id="historyBody"></tbody>
+        </table>
+    </div>
+</div>
+
+<!-- H2H -->
+<div class="section-title" style="max-width:1200px;margin-left:auto;margin-right:auto;">
+    🤝 Head-to-Head
+</div>
+<div class="h2h-grid" id="h2hGrid"></div>
+
+<!-- ROSTER -->
+<div class="section-title" style="max-width:1200px;margin-left:auto;margin-right:auto;margin-top:50px;">
+    👥 Elenco Principal
+</div>
+<div class="roster-grid" id="rosterGrid"></div>
+
+<!-- TROPHIES -->
+<div class="section-title" style="max-width:1200px;margin-left:auto;margin-right:auto;margin-top:50px;">
+    🏆 Hall de Troféus
+</div>
+<div class="trophy-grid" id="trophyGrid"></div>
+
+<br><br>
+
+<script>
+// ── Shared keys (mesmas do ecossistema) ─────────────────────────────────────
+const ELO_KEY      = 'msi_elo_v14_prime';
+const CAREER_KEY   = 'msi_tl_career_v1';
+const TROPHY_KEY   = 'tl_trophies_v1';
+const CHAMPS_KEY   = 'msi_champs_v15_zero';
+const DEFAULT_LOGO = 'https://am-a.akamaihd.net/image?resize=3840:&f=http%3A%2F%2Fstatic.lolesports.com%2Fteams%2F1637252586938_teamliquid.png';
+
+function load(k) { return DB.load(k); }
+
+// ── ROSTER ───────────────────────────────────────────────────────────────────
+const ROSTER = [
+    { name: "MiniBoo", desc: "Famoso por ser um entry-fragger destemido e por sua proficiência de nível mundial em agentes como a Neon.", img: "" },
+    { name: "nAts",    desc: "Boa sorte acessando os spike sites quando o nAts estiver por perto.", img: "" },
+    { name: "kamo",    desc: "Um duelista brilhante e jovem que tem algo a provar.", img: "" },
+    { name: "purp0",   desc: "Duelista ou Iniciador? Não se preocupem! O Purp0 sabe o que fazer!", img: "" },
+    { name: "wayne",   desc: "O GOAT e o mestre das mecânicas de Singapura, conhecido como um dos melhores do cenário.", img: "" }
+];
+
+function renderRoster() {
+    document.getElementById('rosterGrid').innerHTML = ROSTER.map((p, i) => {
+        const src = p.img || DEFAULT_LOGO;
+        const cls = p.img ? 'player-img' : 'player-img fallback';
+        return `<div class="player-card" style="animation:fadeIn .6s ease-out ${i*.1}s both">
+            <div class="player-img-wrap"><img src="${src}" class="${cls}" alt="${p.name}"></div>
+            <div class="player-info">
+                <h3 class="player-name">${p.name}</h3>
+                <p class="player-desc">${p.desc}</p>
+            </div>
+        </div>`;
+    }).join('');
+}
+
+// ── STATS BAR ────────────────────────────────────────────────────────────────
+function renderStatsBar() {
+    const eloData = load(ELO_KEY) || {};
+    const tl      = eloData['Team Liquid'];
+    const career  = load(CAREER_KEY) || { matches:[], eloHistory:[], headToHead:{} };
+    const matches = career.matches;
+    const wins    = matches.filter(m => m.result === 'W').length;
+    const losses  = matches.filter(m => m.result === 'L').length;
+    const total   = wins + losses;
+    const wr      = total > 0 ? ((wins/total)*100).toFixed(1) : '—';
+    const elo     = tl?.elo ?? '—';
+    const peak    = career.eloHistory.length ? Math.max(...career.eloHistory.map(e=>e.elo)) : elo;
+    const trophies = (load(TROPHY_KEY) || []).length;
+
+    document.getElementById('statsBar').innerHTML = `
+        <div class="stat-pill"><span>ELO ATUAL</span><span class="val">${elo}</span></div>
+        <div class="stat-pill"><span>PEAK ELO</span><span class="val">${peak}</span></div>
+        <div class="stat-pill green"><span>WIN RATE</span><span class="val">${wr}%</span></div>
+        <div class="stat-pill"><span>PARTIDAS</span><span class="val">${wins}W / ${losses}L</span></div>
+        <div class="stat-pill"><span>TROFÉUS</span><span class="val">${trophies}</span></div>`;
+}
+
+// ── ELO CHART ────────────────────────────────────────────────────────────────
+function renderChart() {
+    const career = load(CAREER_KEY) || { eloHistory: [] };
+    const data   = career.eloHistory;
+    const canvas = document.getElementById('eloChart');
+    const ctx    = canvas.getContext('2d');
+    const W = canvas.offsetWidth || 900, H = 200;
+    canvas.width = W; canvas.height = H;
+    const pad = { top:20, bottom:28, left:52, right:20 };
+
+    ctx.clearRect(0, 0, W, H);
+
+    if (data.length < 2) {
+        ctx.fillStyle = '#6a8fa8'; ctx.font = '13px Segoe UI';
+        ctx.textAlign = 'center';
+        ctx.fillText('Jogue partidas para ver o gráfico de ELO aqui', W/2, H/2);
+        return;
+    }
+
+    const elos  = data.map(d => d.elo);
+    const minE  = Math.max(0, Math.min(...elos) - 80);
+    const maxE  = Math.max(...elos) + 80;
+    const range = maxE - minE || 1;
+    const iW    = W - pad.left - pad.right;
+    const iH    = H - pad.top - pad.bottom;
+    const tx    = i  => pad.left + (i / (data.length-1)) * iW;
+    const ty    = e  => pad.top  + iH - ((e - minE) / range) * iH;
+
+    // Grid lines
+    for (let i = 0; i <= 4; i++) {
+        const y = pad.top + (i/4)*iH;
+        ctx.strokeStyle = '#1e3050'; ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.moveTo(pad.left, y); ctx.lineTo(pad.left+iW, y); ctx.stroke();
+        ctx.fillStyle = '#6a8fa8'; ctx.font = '9px Consolas'; ctx.textAlign = 'right';
+        ctx.fillText(Math.round(maxE - (i/4)*range), pad.left-5, y+3);
+    }
+
+    // Season separators
+    let lastSeason = data[0]?.season;
+    data.forEach((d, i) => {
+        if (i > 0 && d.season !== lastSeason) {
+            ctx.strokeStyle = 'rgba(255,70,85,0.25)'; ctx.lineWidth = 1;
+            ctx.setLineDash([3,3]);
+            ctx.beginPath(); ctx.moveTo(tx(i), pad.top); ctx.lineTo(tx(i), pad.top+iH); ctx.stroke();
+            ctx.setLineDash([]);
+            ctx.fillStyle = 'rgba(255,70,85,0.6)'; ctx.font = '8px Segoe UI'; ctx.textAlign = 'left';
+            ctx.fillText(String(d.season), tx(i)+2, pad.top+8);
+            lastSeason = d.season;
+        }
+    });
+
+    // Gradient fill
+    const grad = ctx.createLinearGradient(0, pad.top, 0, pad.top+iH);
+    grad.addColorStop(0, 'rgba(0,174,255,0.3)');
+    grad.addColorStop(1, 'rgba(0,174,255,0.01)');
+    ctx.beginPath(); ctx.moveTo(tx(0), ty(elos[0]));
+    data.forEach((_, i) => ctx.lineTo(tx(i), ty(elos[i])));
+    ctx.lineTo(tx(data.length-1), pad.top+iH); ctx.lineTo(tx(0), pad.top+iH);
+    ctx.closePath(); ctx.fillStyle = grad; ctx.fill();
+
+    // Line
+    ctx.beginPath(); ctx.moveTo(tx(0), ty(elos[0]));
+    data.forEach((_, i) => ctx.lineTo(tx(i), ty(elos[i])));
+    ctx.strokeStyle = '#00aeff'; ctx.lineWidth = 2.5; ctx.stroke();
+
+    // Peak marker
+    const pi = elos.indexOf(Math.max(...elos));
+    ctx.fillStyle = '#ffd700'; ctx.font = 'bold 9px Segoe UI'; ctx.textAlign = 'center';
+    ctx.fillText(`PEAK ${elos[pi]}`, tx(pi), ty(elos[pi]) - 9);
+    ctx.fillStyle = '#ffd700';
+    ctx.beginPath(); ctx.arc(tx(pi), ty(elos[pi]), 4, 0, Math.PI*2); ctx.fill();
+
+    // Current dot
+    const li = data.length-1;
+    ctx.fillStyle = '#00aeff';
+    ctx.beginPath(); ctx.arc(tx(li), ty(elos[li]), 4, 0, Math.PI*2); ctx.fill();
+}
+
+// ── MATCH HISTORY ────────────────────────────────────────────────────────────
+function renderHistory() {
+    const career  = load(CAREER_KEY) || { matches: [] };
+    const matches = [...career.matches].reverse();
+    const tbody   = document.getElementById('historyBody');
+
+    if (!matches.length) {
+        tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;color:#444;padding:30px">Nenhuma partida ainda</td></tr>`;
+        return;
+    }
+
+    tbody.innerHTML = matches.map(m => `
+        <tr>
+            <td style="color:#555;font-size:0.72rem">${m.date}</td>
+            <td style="font-size:0.72rem;color:#6a8fa8">${m.season||'—'}</td>
+            <td><img src="${m.oppLogo||DEFAULT_LOGO}" style="width:16px;height:16px;object-fit:contain;vertical-align:middle;margin-right:5px">${m.opponent}</td>
+            <td class="${m.result==='W'?'rw':'rl'}">${m.result==='W'?'✓ WIN':'✗ LOSS'}</td>
+            <td style="font-family:monospace">${m.score||'—'}</td>
+            <td style="font-size:0.72rem;color:#6a8fa8">${m.phase||'—'}</td>
+            <td class="${m.eloChange>0?'eu':'ed'}">${m.eloChange>0?'+':''}${m.eloChange} → ${m.eloAfter}</td>
+        </tr>`).join('');
+}
+
+// ── H2H ──────────────────────────────────────────────────────────────────────
+function renderH2H() {
+    const career = load(CAREER_KEY) || { headToHead: {} };
+    const h2h    = career.headToHead;
+    const grid   = document.getElementById('h2hGrid');
+    const entries = Object.entries(h2h)
+        .map(([name, d]) => ({ name, ...d, total: d.wins+d.losses, wr: d.wins+d.losses>0 ? Math.round((d.wins/(d.wins+d.losses))*100) : 0 }))
+        .sort((a,b) => b.total - a.total);
+
+    if (!entries.length) {
+        grid.innerHTML = `<div class="empty-state">Nenhum confronto registrado ainda</div>`;
+        return;
+    }
+
+    grid.innerHTML = entries.map(e => `
+        <div class="h2h-card">
+            <img src="${e.logo||DEFAULT_LOGO}" alt="${e.name}">
+            <div style="flex:1;min-width:0">
+                <div class="h2h-name">${e.name}</div>
+                <div class="h2h-score"><span class="rw">${e.wins}W</span> <span style="color:#444">–</span> <span class="rl">${e.losses}L</span></div>
+                <div class="wbar"><div class="wbar-fill" style="width:${e.wr}%"></div></div>
+            </div>
+            <div style="text-align:right">
+                <div style="font-family:monospace;font-weight:bold;color:${e.wr>=50?'var(--rank-s)':'var(--prime-red)'};font-size:0.82rem">${e.wr}%</div>
+                <div style="font-size:0.65rem;color:#555">${e.total} jogos</div>
+            </div>
+        </div>`).join('');
+}
+
+// ── TROPHIES ─────────────────────────────────────────────────────────────────
+function renderTrophies() {
+    const custom  = load(TROPHY_KEY) || [];
+    // Também lê do Champion archive (retrocompatibilidade)
+    const archive = load(CHAMPS_KEY) || [];
+    const fromArchive = archive
+        .filter(c => c.name === 'Team Liquid')
+        .map(c => ({ type:'CHAMPIONS', icon:'🏆', title:`Champions — Season ${c.season||'?'}`, date: c.date||'—', runnerUp: c.runnerUp||'—' }));
+
+    const all = [...custom, ...fromArchive];
+    const grid = document.getElementById('trophyGrid');
+
+    if (!all.length) {
+        grid.innerHTML = `<div class="empty-state">🕹️ Nenhum título ainda — vá jogar e conquiste algo!</div>`;
+        return;
+    }
+
+    const order = { CHAMPIONS:1, MASTERS:2, KICKOFF:3, PRIME:4 };
+    all.sort((a,b) => (order[a.type]||9) - (order[b.type]||9));
+
+    grid.innerHTML = all.map((t, i) => `
+        <div class="trophy-card th-${t.type||'PRIME'}" style="animation:fadeIn .6s ease-out ${i*.08}s both">
+            <div class="trophy-icon">${t.icon||'🏅'}</div>
+            <div class="trophy-title">${t.title}</div>
+            <div class="trophy-date">${t.date}</div>
+            <div class="trophy-vice">🥈 Vice: ${t.runnerUp||'—'}</div>
+        </div>`).join('');
+}
+
+// ── INIT ─────────────────────────────────────────────────────────────────────
+DB.init().then(() => {
+    renderRoster();
+    renderStatsBar();
+    renderHistory();
+    renderH2H();
+    renderTrophies();
+    requestAnimationFrame(renderChart);
+});
+</script>
+</body>
+</html>
