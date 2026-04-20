@@ -114,9 +114,18 @@
         .celebration { animation: shine 2s infinite; }
     </style>
     <script type="module" src="db.js"></script>
+    <script src="shared.js"></script>
     <script type="module" src="navbar.js"></script>
 </head>
 <body>
+
+<!-- Loading overlay enquanto DB inicializa -->
+<div id="loadingOverlay" style="position:fixed;inset:0;background:#09090b;z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;transition:opacity 0.4s;">
+    <img src="https://am-a.akamaihd.net/image?resize=3840:&f=http%3A%2F%2Fstatic.lolesports.com%2Fteams%2F1637252586938_teamliquid.png" style="width:60px;opacity:0.8;animation:pulse 1.2s ease-in-out infinite;">
+    <div style="color:#6a8fa8;font-size:0.82rem;font-family:monospace;letter-spacing:2px;">CARREGANDO DADOS...</div>
+    <style>@keyframes pulse{0%,100%{opacity:0.4}50%{opacity:1}}</style>
+</div>
+
 
 <h1>CALIBRAÇÃO <span style="font-size:1rem;color:var(--gold);">ROAD TO 1000</span></h1>
 
@@ -133,6 +142,15 @@
         <span id="progressLabel">0 / 1000</span>
     </div>
     <div class="progress-outer"><div id="progressInner" class="progress-inner" style="width:0%"></div></div>
+</div>
+
+<!-- Cycle progress: teams left to face -->
+<div id="cycleTracker" style="width:100%;max-width:900px;margin-bottom:12px;background:#0a1222;border:1px solid #1e3050;border-radius:6px;padding:10px 14px;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+        <span style="font-size:0.7rem;color:#6a8fa8;text-transform:uppercase;letter-spacing:1px;">Times restantes no ciclo atual</span>
+        <span id="cycleCounter" style="font-size:0.72rem;color:#6a8fa8;font-family:monospace;"></span>
+    </div>
+    <div id="cycleTeams" style="display:flex;flex-wrap:wrap;gap:6px;"></div>
 </div>
 
 <div class="controls">
@@ -237,68 +255,20 @@
         </div>
 
         <div id="mapsContainer"></div>
-        <div style="margin-top:20px;"><button onclick="sim.confirmManualMatch()" style="width:100%;">CONFIRMAR RESULTADO</button></div>
+
+        <!-- Preview ELO em tempo real -->
+        <div id="eloPreview" style="display:none;margin-top:12px;background:rgba(0,0,0,0.3);border-radius:6px;padding:10px;text-align:center;font-family:monospace;font-size:0.85rem;border:1px solid #1e3050;">
+            <span id="eloPreviewText" style="color:#6a8fa8">Preencha os mapas para ver a variação de ELO</span>
+        </div>
+
+        <div style="margin-top:16px;"><button onclick="sim.confirmManualMatch()" style="width:100%;">CONFIRMAR RESULTADO</button></div>
     </div>
 </div>
 
 <script>
 // ─── Chaves compartilhadas com kickoff.html e masters.html ──────────────────
-const ELO_KEY       = 'msi_elo_v14_prime';   // ← MESMA CHAVE DO ECOSSISTEMA
-const TL_STATS_KEY  = 'msi_tl_career_v1';    // ← MESMA CHAVE DA CARREIRA
-const CALIB_KEY     = 'msi_calib_state_v1';  // estado interno da calibração
 
-const DEFAULT_LOGO = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23555'%3E%3Cpath d='M12 2L2 7l1.5 11L12 22l8.5-4L22 7l-10-5z'/%3E%3C/svg%3E";
 
-const REAL_TEAMS_DATA = [
-    { name:"NRG",         region:"AMER", logo:"https://am-a.akamaihd.net/image?resize=3840:&f=http%3A%2F%2Fstatic.lolesports.com%2Fteams%2F1731490666442_NRGWHT.png" },
-    { name:"SEN",         region:"AMER", logo:"https://am-a.akamaihd.net/image?resize=3840:&f=http%3A%2F%2Fstatic.lolesports.com%2Fteams%2F1739254422982_sent.png" },
-    { name:"LOUD",        region:"AMER", logo:"https://am-a.akamaihd.net/image?resize=3840:&f=http%3A%2F%2Fstatic.lolesports.com%2Fteams%2F1644060140569_LOUDGreen.png" },
-    { name:"LEV",         region:"AMER", logo:"https://am-a.akamaihd.net/image?resize=3840:&f=http%3A%2F%2Fstatic.lolesports.com%2Fteams%2F1644148043034_Leviatncolor.png" },
-    { name:"100T",        region:"AMER", logo:"https://am-a.akamaihd.net/image?resize=3840:&f=http%3A%2F%2Fstatic.lolesports.com%2Fteams%2F1644966311613_100TVAL.png" },
-    { name:"C9",          region:"AMER", logo:"https://am-a.akamaihd.net/image?resize=3840:&f=http%3A%2F%2Fstatic.lolesports.com%2Fteams%2F1725635348011_C9-Logo.png" },
-    { name:"EG",          region:"AMER", logo:"https://am-a.akamaihd.net/image?resize=3840:&f=http%3A%2F%2Fstatic.lolesports.com%2Fteams%2F1731490673901_VintageEG.png" },
-    { name:"MIBR",        region:"AMER", logo:"https://am-a.akamaihd.net/image?resize=3840:&f=http%3A%2F%2Fstatic.lolesports.com%2Fteams%2F1648844013086_mibr_white-logo.png" },
-    { name:"FUR",         region:"AMER", logo:"https://am-a.akamaihd.net/image?resize=3840:&f=http%3A%2F%2Fstatic.lolesports.com%2Fteams%2F1644059765262_FURIA-LOGO.png" },
-    { name:"KRU",         region:"AMER", logo:"https://am-a.akamaihd.net/image?resize=3840:&f=http%3A%2F%2Fstatic.lolesports.com%2Fteams%2F1630017626481_kru.png" },
-    { name:"G2",          region:"AMER", logo:"https://am-a.akamaihd.net/image?resize=3840:&f=http%3A%2F%2Fstatic.lolesports.com%2Fteams%2F1675329807714_G2-Esports-Logo1.png" },
-    { name:"2G",          region:"AMER", logo:"https://am-a.akamaihd.net/image?resize=3840:&f=http%3A%2F%2Fstatic.lolesports.com%2Fteams%2F1734014001506_2gPurple.png" },
-    { name:"FNC",         region:"EMEA", logo:"https://am-a.akamaihd.net/image?resize=3840:&f=http%3A%2F%2Fstatic.lolesports.com%2Fteams%2F1644542427486_download37.png" },
-    { name:"Team Liquid", region:"EMEA", logo:"https://am-a.akamaihd.net/image?resize=3840:&f=http%3A%2F%2Fstatic.lolesports.com%2Fteams%2F1637252586938_teamliquid.png" },
-    { name:"NAVI",        region:"EMEA", logo:"https://am-a.akamaihd.net/image?resize=3840:&f=http%3A%2F%2Fstatic.lolesports.com%2Fteams%2F1627386036528_Natus_Vincere_2021_lightmode.png" },
-    { name:"TH",          region:"EMEA", logo:"https://am-a.akamaihd.net/image?resize=3840:&f=http%3A%2F%2Fstatic.lolesports.com%2Fteams%2F1674060672534_600px-Team_Heretics_2022_allmode1.png" },
-    { name:"VIT",         region:"EMEA", logo:"https://am-a.akamaihd.net/image?resize=3840:&f=http%3A%2F%2Fstatic.lolesports.com%2Fteams%2F1722030793680_VITALITY_YELLOW.png" },
-    { name:"KC",          region:"EMEA", logo:"https://am-a.akamaihd.net/image?resize=3840:&f=http%3A%2F%2Fstatic.lolesports.com%2Fteams%2F1651626649157_download1.png" },
-    { name:"FUT",         region:"EMEA", logo:"https://am-a.akamaihd.net/image?resize=3840:&f=http%3A%2F%2Fstatic.lolesports.com%2Fteams%2F1644342678681_FUT_VRL_DARK.png" },
-    { name:"BBL",         region:"EMEA", logo:"https://am-a.akamaihd.net/image?resize=3840:&f=http%3A%2F%2Fstatic.lolesports.com%2Fteams%2F1674060310685_BBL-GOLD-EMBLEM1.png" },
-    { name:"MKOI",        region:"EMEA", logo:"https://am-a.akamaihd.net/image?resize=3840:&f=http%3A%2F%2Fstatic.lolesports.com%2Fteams%2F1734088118323_LOGOS_MKOI_BLUE.png" },
-    { name:"APK",         region:"EMEA", logo:"https://am-a.akamaihd.net/image?resize=3840:&f=http%3A%2F%2Fstatic.lolesports.com%2Fteams%2F1673468188944_Apeks_Logomark_Orange1.png" },
-    { name:"M8",          region:"EMEA", logo:"https://am-a.akamaihd.net/image?resize=3840:&f=http%3A%2F%2Fstatic.lolesports.com%2Fteams%2F1734098462992_M8Color_DarkBG.png" },
-    { name:"GX",          region:"EMEA", logo:"https://am-a.akamaihd.net/image?resize=3840:&f=http%3A%2F%2Fstatic.lolesports.com%2Fteams%2F1706547566185_GX.png" },
-    { name:"PRX",         region:"PAC",  logo:"https://am-a.akamaihd.net/image?resize=3840:&f=http%3A%2F%2Fstatic.lolesports.com%2Fteams%2F1630018120582_paper-rex-2021.png" },
-    { name:"DRX",         region:"PAC",  logo:"https://am-a.akamaihd.net/image?resize=3840:&f=http%3A%2F%2Fstatic.lolesports.com%2Fteams%2F1705652820016_DRXwhite.png" },
-    { name:"GEN",         region:"PAC",  logo:"https://am-a.akamaihd.net/image?resize=3840:&f=http%3A%2F%2Fstatic.lolesports.com%2Fteams%2F1678453609404_GenG_logo_200407-051.png" },
-    { name:"T1",          region:"PAC",  logo:"https://am-a.akamaihd.net/image?resize=3840:&f=http%3A%2F%2Fstatic.lolesports.com%2Fteams%2F1677137430839_T1_infoboximage1.png" },
-    { name:"TS",          region:"PAC",  logo:"https://am-a.akamaihd.net/image?resize=3840:&f=http%3A%2F%2Fstatic.lolesports.com%2Fteams%2F1636575342048_team-secret-on-dark.png" },
-    { name:"ZETA",        region:"PAC",  logo:"https://am-a.akamaihd.net/image?resize=3840:&f=http%3A%2F%2Fstatic.lolesports.com%2Fteams%2F1630017899610_zeta.png" },
-    { name:"DFM",         region:"PAC",  logo:"https://am-a.akamaihd.net/image?resize=3840:&f=http%3A%2F%2Fstatic.lolesports.com%2Fteams%2F1675669923678_190px-DetonatioN_FocusMe_2022_darkmode1.png" },
-    { name:"RRQ",         region:"PAC",  logo:"https://am-a.akamaihd.net/image?resize=3840:&f=http%3A%2F%2Fstatic.lolesports.com%2Fteams%2F1707306458590_LOGO_RRQ_orange.png" },
-    { name:"TLN",         region:"PAC",  logo:"https://am-a.akamaihd.net/image?resize=3840:&f=http%3A%2F%2Fstatic.lolesports.com%2Fteams%2F1674056858749_Talon_Esports_logo1.png" },
-    { name:"GE",          region:"PAC",  logo:"https://am-a.akamaihd.net/image?resize=3840:&f=http%3A%2F%2Fstatic.lolesports.com%2Fteams%2F1677137854820_GERedandBlue-WhiteBG.png" },
-    { name:"BME",         region:"PAC",  logo:"https://am-a.akamaihd.net/image?resize=3840:&f=http%3A%2F%2Fstatic.lolesports.com%2Fteams%2F1739254331177_boom.png" },
-    { name:"NS",          region:"PAC",  logo:"https://am-a.akamaihd.net/image?resize=3840:&f=http%3A%2F%2Fstatic.lolesports.com%2Fteams%2F1674219422693_NS_.png" },
-    { name:"EDG",         region:"CN",   logo:"https://am-a.akamaihd.net/image?resize=3840:&f=http%3A%2F%2Fstatic.lolesports.com%2Fteams%2F1735920597800_edg1.png" },
-    { name:"BLG",         region:"CN",   logo:"https://am-a.akamaihd.net/image?resize=3840:&f=http%3A%2F%2Fstatic.lolesports.com%2Fteams%2F1707126028220_BLG.png" },
-    { name:"FPX",         region:"CN",   logo:"https://am-a.akamaihd.net/image?resize=3840:&f=http%3A%2F%2Fstatic.lolesports.com%2Fteams%2F1644542485597_download38.png" },
-    { name:"TE",          region:"CN",   logo:"https://am-a.akamaihd.net/image?resize=3840:&f=http%3A%2F%2Fstatic.lolesports.com%2Fteams%2F1736345448590_TE.png" },
-    { name:"DRG",         region:"CN",   logo:"https://am-a.akamaihd.net/image?resize=3840:&f=http%3A%2F%2Fstatic.lolesports.com%2Fteams%2F1707126143797_DRG.png" },
-    { name:"WOL",         region:"CN",   logo:"https://am-a.akamaihd.net/image?resize=3840:&f=http%3A%2F%2Fstatic.lolesports.com%2Fteams%2F1707126969882_WOL.png" },
-    { name:"NOVA",        region:"CN",   logo:"https://am-a.akamaihd.net/image?resize=3840:&f=http%3A%2F%2Fstatic.lolesports.com%2Fteams%2F1741178535000_NOVA.png" },
-    { name:"TYL",         region:"CN",   logo:"https://am-a.akamaihd.net/image?resize=3840:&f=http%3A%2F%2Fstatic.lolesports.com%2Fteams%2F1768990500116_TYLLOGO.png" },
-    { name:"AG",          region:"CN",   logo:"https://am-a.akamaihd.net/image?resize=3840:&f=http%3A%2F%2Fstatic.lolesports.com%2Fteams%2F1707126806655_AG.png" },
-    { name:"TEC",         region:"CN",   logo:"https://am-a.akamaihd.net/image?resize=3840:&f=http%3A%2F%2Fstatic.lolesports.com%2Fteams%2F1707127134615_TEC.png" },
-    { name:"XLG",         region:"CN",   logo:"https://am-a.akamaihd.net/image?resize=3840:&f=http%3A%2F%2Fstatic.lolesports.com%2Fteams%2F1735920774181_XLGA.PNG" },
-    { name:"JDG",         region:"CN",   logo:"https://am-a.akamaihd.net/image?resize=3840:&f=http%3A%2F%2Fstatic.lolesports.com%2Fteams%2F1707126862498_JDG.png" }
-];
 
 // ─── K dinâmico: começa alto pra separar rápido, cai conforme estabiliza ────
 function getDynamicK(roundRobinCycle) {
@@ -489,45 +459,66 @@ class EloCalibSimulator {
     playRound(isFast = false, roundsToPlay = 1) {
         if (this.currentPhase === 'FINISHED') return;
 
+        // Se TL tem resultado pendente, reabre o modal — não avança nada
+        if (this.manualMatchPending) {
+            this.openModal(this.manualMatchPending);
+            return;
+        }
+
         for (let r = 0; r < roundsToPlay; r++) {
             if (this.currentPhase === 'FINISHED') break;
 
             // Início de novo ciclo — TL SEMPRE na posição 0 (pivot fixo do Circle Method)
             if (this.schedulePool.length === 0 || this.currentRoundInCycle >= this.teams.length - 1) {
-                const tl    = this.teams.find(t => t.isManual);
-                const rest  = this.teams.filter(t => !t.isManual).sort(() => Math.random() - 0.5);
-                this.schedulePool        = [tl, ...rest]; // TL fixa na pos 0
+                const tl   = this.teams.find(t => t.isManual);
+                const rest = this.teams.filter(t => !t.isManual).sort(() => Math.random() - 0.5);
+                this.schedulePool        = [tl, ...rest];
                 this.currentRoundInCycle = 0;
                 this.roundRobinCycle++;
             }
 
-            // Gera os confrontos da rodada
+            // Gera confrontos da rodada (sem rotar ainda)
             const n = this.schedulePool.length;
-            let matchesToPlay = [];
-            for (let i = 0; i < n/2; i++) {
+            const matchesToPlay = [];
+            for (let i = 0; i < n / 2; i++) {
                 matchesToPlay.push({ t1: this.schedulePool[i], t2: this.schedulePool[n-1-i] });
             }
 
-            // Rotaciona (Circle Method)
-            const last = this.schedulePool.pop();
-            this.schedulePool.splice(1, 0, last);
-            this.currentRoundInCycle++;
-            this.saveCalibState();
-
             if (isFast) {
+                // Roda rápido: rotaciona, simula tudo, salva
+                const last = this.schedulePool.pop();
+                this.schedulePool.splice(1, 0, last);
+                this.currentRoundInCycle++;
                 matchesToPlay.forEach(m => { if (this.currentPhase !== 'FINISHED') this.simSeries(m, 3); });
+                this.saveCalibState();
             } else {
                 const manual = matchesToPlay.find(m => m.t1.isManual || m.t2.isManual);
                 if (manual) {
-                    matchesToPlay.forEach(m => { if (m !== manual && this.currentPhase !== 'FINISHED') this.simSeries(m, 3); });
-                    // Salva estado completo (pool + round) ANTES de abrir modal
+                    // ── SNAPSHOT: guarda estado pré-rodada ──────────────────
+                    // Simula os outros ANTES de rotar — pool ainda não avançou
+                    matchesToPlay.forEach(m => {
+                        if (m !== manual && this.currentPhase !== 'FINISHED') this.simSeries(m, 3);
+                    });
+
+                    // Agora rotaciona e incrementa (será salvo ao confirmar TL)
+                    const last = this.schedulePool.pop();
+                    this.schedulePool.splice(1, 0, last);
+                    this.currentRoundInCycle++;
+
+                    // Salva estado (pool já rotacionado) + flag de pendente com timestamp
                     this.saveCalibState();
-                    this._save('calib_pending_tl', { t1: manual.t1.name, t2: manual.t2.name });
+                    localStorage.setItem('calib_pending_tl', JSON.stringify({ t1: manual.t1.name, t2: manual.t2.name }));
+                    localStorage.setItem('calib_pending_tl_time', Date.now().toString());
                     this.manualMatchPending = manual;
                     this.openModal(manual);
-                    return; // Pausa para o modal
+                    return; // ← PAUSA aqui — retoma no confirmManualMatch()
                 } else {
+                    // Sem TL nesta rodada: rotaciona, simula, salva
+                    const last = this.schedulePool.pop();
+                    this.schedulePool.splice(1, 0, last);
+                    this.currentRoundInCycle++;
                     matchesToPlay.forEach(m => { if (this.currentPhase !== 'FINISHED') this.simSeries(m, 3); });
+                    this.saveCalibState();
                 }
             }
         }
@@ -562,8 +553,9 @@ class EloCalibSimulator {
 
         const c = document.getElementById('mapsContainer'); c.innerHTML = '';
         for (let i=1; i<=3; i++) {
-            c.innerHTML += `<div class="map-row"><span style="width:55px;text-align:right;color:#666;font-size:0.82rem;">MAP ${i}</span><input type="number" id="m${i}_f" placeholder="?" min="0" max="30"><span style="color:#555">—</span><input type="number" id="m${i}_e" placeholder="?" min="0" max="30"></div>`;
+            c.innerHTML += `<div class="map-row"><span style="width:55px;text-align:right;color:#666;font-size:0.82rem;">MAP ${i}</span><input type="number" id="m${i}_f" placeholder="?" min="0" max="30" oninput="sim._updateEloPreview()"><span style="color:#555">—</span><input type="number" id="m${i}_e" placeholder="?" min="0" max="30" oninput="sim._updateEloPreview()"></div>`;
         }
+        document.getElementById('eloPreview').style.display = 'none';
 
         this.manualMatchPending = match;
         document.getElementById('btnSim').disabled = true;
@@ -574,7 +566,37 @@ class EloCalibSimulator {
 
     _closeManualModal() {
         document.getElementById('manualModal').style.display = 'none';
-        this.render(); // atualiza botões mostrando que TL ainda está pendente
+        this.render();
+    }
+
+    _updateEloPreview() {
+        const match = this.manualMatchPending;
+        if (!match) return;
+        const man = match.t1.isManual ? match.t1 : match.t2;
+        const opp = match.t1.isManual ? match.t2 : match.t1;
+        const K   = getDynamicK(this.roundRobinCycle);
+
+        let wM = 0, wE = 0;
+        for (let i = 1; i <= 3; i++) {
+            if (wM >= 2 || wE >= 2) break;
+            const vf = document.getElementById(`m${i}_f`)?.value;
+            const ve = document.getElementById(`m${i}_e`)?.value;
+            if (vf === '' || ve === '' || vf === null || ve === null) return;
+            const s1 = parseInt(vf), s2 = parseInt(ve);
+            if (isNaN(s1) || isNaN(s2)) return;
+            if (s1 > s2) wM++; else if (s2 > s1) wE++;
+        }
+
+        const won     = wM >= 2;
+        const { gain, loss, chance } = calcElo(man.rating, opp.rating, K);
+        const delta   = won ? gain : -loss;
+        const newElo  = Math.max(0, man.rating + delta);
+        const color   = won ? '#42f590' : '#ff4655';
+        const arrow   = won ? '↑' : '↓';
+
+        document.getElementById('eloPreview').style.display = 'block';
+        document.getElementById('eloPreviewText').innerHTML =
+            `ELO: <span style="color:#6a8fa8">${man.rating}</span> → <span style="color:${color};font-weight:bold">${newElo}</span> <span style="color:${color}">${arrow}${Math.abs(delta)}</span> <span style="color:#444">| Chance original: ${chance}%</span>`;
     }
 
     confirmManualMatch() {
@@ -596,7 +618,10 @@ class EloCalibSimulator {
         const winner = wM>wE ? manual : enemy;
         const loser  = wM>wE ? enemy  : manual;
         this.resolveStats(winner, loser, `${Math.max(wM,wE)}-${Math.min(wM,wE)}`, maps, match);
-        DB.remove('calib_pending_tl'); // limpa flag de pendente
+
+        // Limpa flag de pendente — localStorage direto, não passa pelo Supabase
+        localStorage.removeItem('calib_pending_tl');
+        localStorage.removeItem('calib_pending_tl_time');
         this.manualMatchPending = null;
 
         document.getElementById('manualModal').style.display = 'none';
@@ -608,15 +633,34 @@ class EloCalibSimulator {
     }
 
     _checkPendingTLMatch() {
-        const pending = this._load('calib_pending_tl');
+        const pending = DB.load('calib_pending_tl');
         if (!pending || this.currentPhase === 'FINISHED') return;
+
         const t1 = this.teams.find(t => t.name === pending.t1);
         const t2 = this.teams.find(t => t.name === pending.t2);
-        if (t1 && t2) {
-            const match = { t1, t2, played: false };
-            this.manualMatchPending = match;
-            setTimeout(() => this.openModal(match), 250);
+        if (!t1 || !t2) {
+            // Times não encontrados — flag velha, limpa
+            localStorage.removeItem('calib_pending_tl');
+            return;
         }
+
+        // Verifica se a partida ainda é válida comparando com o histórico recente.
+        // Se o último confronto TL vs esse oponente foi registrado DEPOIS do save,
+        // significa que já foi confirmada — ignora.
+        const opp = t1.isManual ? t2 : t1;
+        const lastMatch = [...this.tlStats.matches].reverse()
+            .find(m => m.opponent === opp.name && m.season === 'CALIB');
+        const calibState = DB.load('calib_pending_tl_time');
+        if (lastMatch && calibState) {
+            // Se tem partida registrada contra esse oponente após o flag ser setado, já foi confirmado
+            localStorage.removeItem('calib_pending_tl');
+            localStorage.removeItem('calib_pending_tl_time');
+            return;
+        }
+
+        const match = { t1, t2, played: false };
+        this.manualMatchPending = match;
+        setTimeout(() => this.openModal(match), 250);
     }
 
     // ── Fim da calibração ────────────────────────────────────────────────────
@@ -672,6 +716,33 @@ class EloCalibSimulator {
         // Progress bar
         document.getElementById('progressInner').style.width = pct+'%';
         document.getElementById('progressLabel').innerText = `${maxElo} / 1000`;
+
+        // Cycle tracker — times restantes no ciclo
+        if (this.schedulePool.length > 0 && this.currentPhase !== 'FINISHED') {
+            const pool     = this.schedulePool;
+            const n        = pool.length;
+            // Os times que a TL ainda vai enfrentar neste ciclo são os que estão
+            // na outra metade do pool a partir do próximo passo de rotação
+            const tlIdx    = 0; // TL é sempre pivot na posição 0
+            // Times já enfrentados = os que rotacionaram "acima" de TL
+            const remaining = pool.slice(1).filter(t => !t.isManual);
+            const facedCount = (this.teams.length - 1) - remaining.length;
+            document.getElementById('cycleCounter').innerText =
+                `Rodada ${this.currentRoundInCycle}/${this.teams.length - 1} — ${remaining.length} restantes`;
+            document.getElementById('cycleTeams').innerHTML = remaining.map(t => {
+                const eloData = calcElo(
+                    this.teams.find(x => x.isManual)?.rating || 0,
+                    t.rating || 0, 97
+                );
+                const chanceColor = parseFloat(eloData.chance) >= 60 ? '#42f590'
+                                  : parseFloat(eloData.chance) >= 40 ? '#ffd700' : '#ff4655';
+                return `<div title="${t.name} — Chance: ${eloData.chance}%" style="display:flex;align-items:center;gap:4px;background:#111;border:1px solid #1e3050;border-radius:4px;padding:3px 7px;">
+                    <img src="${t.logo||DEFAULT_LOGO}" style="width:14px;height:14px;object-fit:contain">
+                    <span style="font-size:0.68rem;color:#aaa">${t.name}</span>
+                    <span style="font-size:0.65rem;color:${chanceColor};font-family:monospace">${eloData.chance}%</span>
+                </div>`;
+            }).join('');
+        }
 
         // TL strip
         const tlTeam = this.teams.find(t=>t.isManual);
@@ -786,14 +857,24 @@ class EloCalibSimulator {
 
     resetToFactory() {
         if (confirm('WIPE TOTAL?\nApaga o ELO de todos os times, o histórico de calibração e a carreira TL.\n\nOs outros arquivos (kickoff, masters) também serão afetados.')) {
-            DB.removeAll([ELO_KEY, TL_STATS_KEY, CALIB_KEY, 'calib_pending_tl']);
+            saveSeasonSnapshot('CALIBRAÇÃO');
+            DB.removeAll([ELO_KEY, TL_STATS_KEY, CALIB_KEY]);
+            localStorage.removeItem('calib_pending_tl');
+            localStorage.removeItem('calib_pending_tl_time');
             location.reload();
         }
     }
 }
 
-let sim;
-DB.init().then(() => { sim = new EloCalibSimulator(); });
+// Aguarda db.js carregar (módulo ES é assíncrono)
+function _initSim() {
+    if (typeof DB === 'undefined') { document.addEventListener('db-ready', _initSim, { once:true }); return; }
+    let sim;
+    window.sim = null;
+    DB.init().then(() => { window.sim = new EloCalibSimulator();
+        const ov = document.getElementById('loadingOverlay'); if(ov){ov.style.opacity='0';setTimeout(()=>ov.remove(),400);} });
+}
+_initSim();
 </script>
 </body>
 </html>

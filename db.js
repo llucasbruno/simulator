@@ -13,8 +13,8 @@
 import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
 
 // ── ⚠️ SUBSTITUA PELOS SEUS DADOS DO SUPABASE ────────────────────────────────
-const SUPABASE_URL = 'https://uyxvcixgizxdxhtptwya.supabase.co';
-const SUPABASE_KEY = 'sb_publishable_uzda998tRcpbzhdGU1WPLQ_6i0MXLWt'; // chave "anon public" do seu projeto
+const SUPABASE_URL = 'https://SEU_PROJETO.supabase.co';
+const SUPABASE_KEY = 'SUA_ANON_KEY'; // chave "anon public" do seu projeto
 // ─────────────────────────────────────────────────────────────────────────────
 
 const TABLE    = 'simulator_data';
@@ -26,12 +26,16 @@ const KNOWN_KEYS = new Set([
     'msi_qualifiers_v1',
     'tl_trophies_v1',
     'msi_calib_state_v1',
-    'calib_pending_tl',
+    // 'calib_pending_tl' é intencionalmente EXCLUÍDA — é estado efêmero de sessão.
+    // Se sincronizar com Supabase, o DB.init() restaura ela após o usuário confirmar
+    // o resultado, reabrindo o modal em loop. Deve viver só no localStorage.
     'kickoff_save_v1',
     'masters_save_v1',
     'msi_save_v15_zero',
     'msi_archive_v15_zero',
     'msi_champs_v15_zero',
+    'tl_player_profile_v1',
+    'tl_seasons_history_v1',
 ]);
 
 let _online     = true;
@@ -119,3 +123,7 @@ window.DB = {
 
     isOnline() { return _online; },
 };
+
+// Dispara evento global quando DB estiver pronto
+// (scripts não-módulo podem escutar window.addEventListener('db-ready', ...))
+document.dispatchEvent(new CustomEvent('db-ready'));
