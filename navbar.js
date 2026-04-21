@@ -24,28 +24,28 @@ function getPageStatus(key) {
     try {
         switch (key) {
             case 'calibracao': {
-                const s = (DB.load('msi_calib_state_v1') || null);
-                const elo = (DB.load('msi_elo_v14_prime') || {});
+                const s = JSON.parse(localStorage.getItem('msi_calib_state_v1') || 'null');
+                const elo = JSON.parse(localStorage.getItem('msi_elo_v14_prime') || '{}');
                 const tlElo = elo['Team Liquid']?.elo ?? 0;
                 if (tlElo >= 1000) return { dot: '✅', tip: `Calibração concluída — ELO: ${tlElo}` };
                 if (s?.cycle > 1 || tlElo > 0) return { dot: '🔄', tip: `Em andamento — ELO: ${tlElo}` };
                 return { dot: '⚪', tip: 'Não iniciado' };
             }
             case 'kickoff': {
-                const q = (DB.load('msi_qualifiers_v1') || {});
+                const q = JSON.parse(localStorage.getItem('msi_qualifiers_v1') || '{}');
                 const done = ['AMER','EMEA','PAC','CN'].filter(r => q[r]?.length === 2).length;
                 if (done === 4) return { dot: '✅', tip: '4/4 regiões classificadas' };
                 if (done > 0)  return { dot: '🔄', tip: `${done}/4 regiões concluídas` };
                 return { dot: '⚪', tip: 'Não iniciado' };
             }
             case 'masters': {
-                const s = (DB.load('masters_save_v1') || null);
+                const s = JSON.parse(localStorage.getItem('masters_save_v1') || 'null');
                 if (!s) return { dot: '⚪', tip: 'Não iniciado' };
                 if (s.currentPhase === 'FINISHED') return { dot: '✅', tip: 'Masters concluído' };
                 return { dot: '🔄', tip: `Em andamento — ${s.currentPhase}` };
             }
             case 'champion': {
-                const s = (DB.load('msi_save_v15_zero') || null);
+                const s = JSON.parse(localStorage.getItem('msi_save_v15_zero') || 'null');
                 if (!s) return { dot: '⚪', tip: 'Não iniciado' };
                 if (s.currentPhase === 'FINISHED') return { dot: '✅', tip: `Season ${s.seasonNumber || '?'} concluída` };
                 return { dot: '🔄', tip: `Season ${s.seasonNumber || '?'} em andamento` };
@@ -57,7 +57,7 @@ function getPageStatus(key) {
 
 function injectNavbar() {
     const current = getCurrentPage();
-    const eloData = (DB.load('msi_elo_v14_prime') || {});
+    const eloData = JSON.parse(localStorage.getItem('msi_elo_v14_prime') || '{}');
     const tlElo   = eloData['Team Liquid']?.elo ?? '—';
 
     const links = NAVBAR_PAGES.map(p => {
@@ -155,7 +155,7 @@ const _origDBInit = window.DB?.init?.bind(window.DB);
 if (_origDBInit) {
     window.DB.init = async function() {
         await _origDBInit();
-        const eloData = (DB.load('msi_elo_v14_prime') || {});
+        const eloData = JSON.parse(localStorage.getItem('msi_elo_v14_prime') || '{}');
         const tlElo   = eloData['Team Liquid']?.elo ?? '—';
         const el = document.getElementById('navElo');
         if (el) el.textContent = tlElo;
