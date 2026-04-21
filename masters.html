@@ -115,6 +115,7 @@
         .tl-log { background:rgba(0,174,255,0.05); border-left:3px solid var(--liquid-blue); padding-left:6px; }
     </style>
     <script type="module" src="db.js"></script>
+    <script src="shared.js"></script>
     <script type="module" src="navbar.js"></script>
 </head>
 <body>
@@ -175,6 +176,7 @@
             <div style="text-align:center"><img id="modLogoOpp" class="big-logo" src=""><br><span id="modalOpponent" style="font-size:0.85rem;">—</span></div>
         </div>
         <div id="mapsContainer"></div>
+        <div id="eloPreview" style="display:none;margin:12px 0;background:rgba(0,0,0,0.3);border-radius:6px;padding:10px;text-align:center;font-family:monospace;font-size:0.85rem;border:1px solid #1e3050;"><span id="eloPreviewText" style="color:#6a8fa8">Preencha os mapas para ver a variação de ELO</span></div>
         <div style="margin-top:20px;"><button onclick="ms.confirmManualMatch()" style="width:100%;">CONFIRMAR RESULTADO</button></div>
     </div>
 </div>
@@ -229,12 +231,7 @@
 </style>
 
 <script>
-const ELO_KEY       = 'msi_elo_v14_prime';
-const QUALIFIER_KEY = 'msi_qualifiers_v1';
-const TL_STATS_KEY  = 'msi_tl_career_v1';
-const MASTERS_KEY   = 'masters_save_v1';
 
-const DEFAULT_LOGO = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23555'%3E%3Cpath d='M12 2L2 7l1.5 11L12 22l8.5-4L22 7l-10-5z'/%3E%3C/svg%3E";
 
 function getKFactor(phase) {
     return { GROUPS:49, SEMIS:79, FINAL:117 }[phase] || 60;
@@ -653,11 +650,43 @@ class MastersSimulator {
         if(wM<wt&&wE<wt){alert('Série indefinida!');return;}
         const match=this.manualMatchPending,manual=match.t1.isManual?match.t1:match.t2,enemy=match.t1.isManual?match.t2:match.t1;
         const winner=wM>wE?manual:enemy,loser=wM>wE?enemy:manual;
-        match.played=true;this.resolveStats(winner,loser,`${Math.max(wM,wE)}-${Math.min(wM,wE)}`,maps,match);this.closeModal();
+        match.played=true;this.resolveStats(winner,loser,`${Math.max(wM,wE)}-${Math.min(wM,wE)}`,maps,match);this.manualMatchPending=null;this.closeModal();
         if(this.currentPhase==='GROUPS'){const l=this.schedule.filter(m=>m.round===this.currentGroupRound&&!m.played).length;if(l===0&&this.currentGroupRound<3)this.currentGroupRound++;}
         this.save();this.render();this.updateButtons();
     }
+
+    _updateEloPreview() {
+        const match = this.manualMatchPending;
+        if (!match) return;
+        const man = match.t1?.isManual ? match.t1 : match.t2;
+        const opp = match.t1?.isManual ? match.t2 : match.t1;
+        if (!man || !opp) return;
+        const K = getKFactor(this.currentPhase);
+        let wM = 0, wE = 0;
+        for (let i = 1; i <= 5; i++) {
+            if (wM >= 3 || wE >= 3) break;
+            const vf = document.getElementById(`m${i}_f`)?.value;
+            const ve = document.getElementById(`m${i}_e`)?.value;
+            if (!vf || !ve) return;
+            const s1 = parseInt(vf), s2 = parseInt(ve);
+            if (isNaN(s1) || isNaN(s2)) return;
+            if (s1 > s2) wM++; else if (s2 > s1) wE++;
+        }
+        if (wM < 2 && wE < 2) return;
+        const won = wM > wE;
+        const { gain, loss, chance } = calcElo(man.rating, opp.rating, K);
+        const delta  = won ? gain : -loss;
+        const newElo = Math.max(0, man.rating + delta);
+        const color  = won ? '#42f590' : '#ff4655';
+        const arrow  = won ? '↑' : '↓';
+        const el = document.getElementById('eloPreview');
+        const tx = document.getElementById('eloPreviewText');
+        if (el) el.style.display = 'block';
+        if (tx) tx.innerHTML = `ELO: <span style="color:#6a8fa8">${man.rating}</span> → <span style="color:${color};font-weight:bold">${newElo}</span> <span style="color:${color}">${arrow}${Math.abs(delta)}</span> <span style="color:#444">| Chance original: ${chance}%</span>`;
+    }
+
     closeModal(){
+        this.manualMatchPending = null;
         document.getElementById('manualModal').style.display='none';
     }
 
@@ -747,6 +776,7 @@ class MastersSimulator {
 
     resetAll(){
         if(confirm('WIPE TOTAL?\nApaga qualificados, ELO, carreira e histórico de todos os torneios.')){
+            saveSeasonSnapshot('MASTERS');
             DB.removeAll([ELO_KEY,QUALIFIER_KEY,TL_STATS_KEY,MASTERS_KEY]);
             location.reload();
         }

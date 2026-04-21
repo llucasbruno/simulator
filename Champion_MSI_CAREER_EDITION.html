@@ -266,6 +266,7 @@
         .k-badge { display: inline-flex; align-items: center; gap: 4px; background: rgba(255,215,0,0.1); border: 1px solid rgba(255,215,0,0.3); color: var(--gold); font-size: 0.7rem; padding: 2px 8px; border-radius: 10px; font-family: monospace; }
     </style>
     <script type="module" src="db.js"></script>
+    <script src="shared.js"></script>
     <script type="module" src="navbar.js"></script>
 </head>
 <body>
@@ -297,10 +298,12 @@
 
 <div id="draftDisplay" class="draft-container" style="display:none;">
     <div class="draft-header">
-        Selecione <strong>16, 32 ou 48 times</strong> para compor as ligas.<br>
-        <div style="display:flex; justify-content:center; align-items:center; gap:15px; margin-top:10px;">
+        <div id="draftInstructions">Selecione os times para o torneio</div>
+        <div style="display:flex; justify-content:center; align-items:center; gap:10px; margin-top:10px; flex-wrap:wrap;">
             <span class="draft-counter" id="draftCounter">Selecionados: 0</span>
+            <button onclick="sim.smartSelectDraft()" class="secondary" style="padding:5px 15px; font-size:0.7rem; border-color: var(--rank-s); color: var(--rank-s);">⚡ AUTO-SELECIONAR TOP TIMES</button>
             <button onclick="sim.selectAllDraft()" class="secondary" style="padding:5px 15px; font-size:0.7rem; border-color: var(--liquid-blue); color: var(--liquid-blue);">SELECIONAR TODOS</button>
+            <button onclick="sim.clearDraft()" class="secondary" style="padding:5px 15px; font-size:0.7rem; border-color:#555; color:#777;">LIMPAR</button>
         </div>
     </div>
     <div class="team-grid" id="draftGrid"></div>
@@ -455,66 +458,9 @@
 
 <script>
 // ─── Storage Keys ───────────────────────────────────────────────────────────
-const CURRENT_KEY   = 'msi_save_v15_zero';
-const ELO_KEY       = 'msi_elo_v14_prime';
-const ARCHIVE_KEY   = 'msi_archive_v15_zero';
-const CHAMPS_KEY    = 'msi_champs_v15_zero';
-const TL_STATS_KEY  = 'msi_tl_career_v1';
-const QUALIFIER_KEY = 'msi_qualifiers_v1';
 
-const DEFAULT_LOGO = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23555'%3E%3Cpath d='M12 2L2 7l1.5 11L12 22l8.5-4L22 7l-10-5zm0 18L4.5 17.1 3.6 8.4 12 4.2l8.4 4.2-.9 8.7L12 20z'/%3E%3C/svg%3E";
 
 // ─── Teams Data ──────────────────────────────────────────────────────────────
-const REAL_TEAMS_DATA = [
-    { name:"NRG",         region:"AMER", rating:0, logo:"https://am-a.akamaihd.net/image?resize=3840:&f=http%3A%2F%2Fstatic.lolesports.com%2Fteams%2F1731490666442_NRGWHT.png" },
-    { name:"SEN",         region:"AMER", rating:0, logo:"https://am-a.akamaihd.net/image?resize=3840:&f=http%3A%2F%2Fstatic.lolesports.com%2Fteams%2F1739254422982_sent.png" },
-    { name:"LOUD",        region:"AMER", rating:0, logo:"https://am-a.akamaihd.net/image?resize=3840:&f=http%3A%2F%2Fstatic.lolesports.com%2Fteams%2F1644060140569_LOUDGreen.png" },
-    { name:"LEV",         region:"AMER", rating:0, logo:"https://am-a.akamaihd.net/image?resize=3840:&f=http%3A%2F%2Fstatic.lolesports.com%2Fteams%2F1644148043034_Leviatncolor.png" },
-    { name:"100T",        region:"AMER", rating:0, logo:"https://am-a.akamaihd.net/image?resize=3840:&f=http%3A%2F%2Fstatic.lolesports.com%2Fteams%2F1644966311613_100TVAL.png" },
-    { name:"C9",          region:"AMER", rating:0, logo:"https://am-a.akamaihd.net/image?resize=3840:&f=http%3A%2F%2Fstatic.lolesports.com%2Fteams%2F1725635348011_C9-Logo.png" },
-    { name:"EG",          region:"AMER", rating:0, logo:"https://am-a.akamaihd.net/image?resize=3840:&f=http%3A%2F%2Fstatic.lolesports.com%2Fteams%2F1731490673901_VintageEG.png" },
-    { name:"MIBR",        region:"AMER", rating:0, logo:"https://am-a.akamaihd.net/image?resize=3840:&f=http%3A%2F%2Fstatic.lolesports.com%2Fteams%2F1648844013086_mibr_white-logo.png" },
-    { name:"FUR",         region:"AMER", rating:0, logo:"https://am-a.akamaihd.net/image?resize=3840:&f=http%3A%2F%2Fstatic.lolesports.com%2Fteams%2F1644059765262_FURIA-LOGO.png" },
-    { name:"KRU",         region:"AMER", rating:0, logo:"https://am-a.akamaihd.net/image?resize=3840:&f=http%3A%2F%2Fstatic.lolesports.com%2Fteams%2F1630017626481_kru.png" },
-    { name:"G2",          region:"AMER", rating:0, logo:"https://am-a.akamaihd.net/image?resize=3840:&f=http%3A%2F%2Fstatic.lolesports.com%2Fteams%2F1675329807714_G2-Esports-Logo1.png" },
-    { name:"2G",          region:"AMER", rating:0, logo:"https://am-a.akamaihd.net/image?resize=3840:&f=http%3A%2F%2Fstatic.lolesports.com%2Fteams%2F1734014001506_2gPurple.png" },
-    { name:"FNC",         region:"EMEA", rating:0, logo:"https://am-a.akamaihd.net/image?resize=3840:&f=http%3A%2F%2Fstatic.lolesports.com%2Fteams%2F1644542427486_download37.png" },
-    { name:"Team Liquid", region:"EMEA", rating:0, logo:"https://am-a.akamaihd.net/image?resize=3840:&f=http%3A%2F%2Fstatic.lolesports.com%2Fteams%2F1637252586938_teamliquid.png" },
-    { name:"NAVI",        region:"EMEA", rating:0, logo:"https://am-a.akamaihd.net/image?resize=3840:&f=http%3A%2F%2Fstatic.lolesports.com%2Fteams%2F1627386036528_Natus_Vincere_2021_lightmode.png" },
-    { name:"TH",          region:"EMEA", rating:0, logo:"https://am-a.akamaihd.net/image?resize=3840:&f=http%3A%2F%2Fstatic.lolesports.com%2Fteams%2F1674060672534_600px-Team_Heretics_2022_allmode1.png" },
-    { name:"VIT",         region:"EMEA", rating:0, logo:"https://am-a.akamaihd.net/image?resize=3840:&f=http%3A%2F%2Fstatic.lolesports.com%2Fteams%2F1722030793680_VITALITY_YELLOW.png" },
-    { name:"KC",          region:"EMEA", rating:0, logo:"https://am-a.akamaihd.net/image?resize=3840:&f=http%3A%2F%2Fstatic.lolesports.com%2Fteams%2F1651626649157_download1.png" },
-    { name:"FUT",         region:"EMEA", rating:0, logo:"https://am-a.akamaihd.net/image?resize=3840:&f=http%3A%2F%2Fstatic.lolesports.com%2Fteams%2F1644342678681_FUT_VRL_DARK.png" },
-    { name:"BBL",         region:"EMEA", rating:0, logo:"https://am-a.akamaihd.net/image?resize=3840:&f=http%3A%2F%2Fstatic.lolesports.com%2Fteams%2F1674060310685_BBL-GOLD-EMBLEM1.png" },
-    { name:"MKOI",        region:"EMEA", rating:0, logo:"https://am-a.akamaihd.net/image?resize=3840:&f=http%3A%2F%2Fstatic.lolesports.com%2Fteams%2F1734088118323_LOGOS_MKOI_BLUE.png" },
-    { name:"APK",         region:"EMEA", rating:0, logo:"https://am-a.akamaihd.net/image?resize=3840:&f=http%3A%2F%2Fstatic.lolesports.com%2Fteams%2F1673468188944_Apeks_Logomark_Orange1.png" },
-    { name:"M8",          region:"EMEA", rating:0, logo:"https://am-a.akamaihd.net/image?resize=3840:&f=http%3A%2F%2Fstatic.lolesports.com%2Fteams%2F1734098462992_M8Color_DarkBG.png" },
-    { name:"GX",          region:"EMEA", rating:0, logo:"https://am-a.akamaihd.net/image?resize=3840:&f=http%3A%2F%2Fstatic.lolesports.com%2Fteams%2F1706547566185_GX.png" },
-    { name:"PRX",         region:"PAC",  rating:0, logo:"https://am-a.akamaihd.net/image?resize=3840:&f=http%3A%2F%2Fstatic.lolesports.com%2Fteams%2F1630018120582_paper-rex-2021.png" },
-    { name:"DRX",         region:"PAC",  rating:0, logo:"https://am-a.akamaihd.net/image?resize=3840:&f=http%3A%2F%2Fstatic.lolesports.com%2Fteams%2F1705652820016_DRXwhite.png" },
-    { name:"GEN",         region:"PAC",  rating:0, logo:"https://am-a.akamaihd.net/image?resize=3840:&f=http%3A%2F%2Fstatic.lolesports.com%2Fteams%2F1678453609404_GenG_logo_200407-051.png" },
-    { name:"T1",          region:"PAC",  rating:0, logo:"https://am-a.akamaihd.net/image?resize=3840:&f=http%3A%2F%2Fstatic.lolesports.com%2Fteams%2F1677137430839_T1_infoboximage1.png" },
-    { name:"TS",          region:"PAC",  rating:0, logo:"https://am-a.akamaihd.net/image?resize=3840:&f=http%3A%2F%2Fstatic.lolesports.com%2Fteams%2F1636575342048_team-secret-on-dark.png" },
-    { name:"ZETA",        region:"PAC",  rating:0, logo:"https://am-a.akamaihd.net/image?resize=3840:&f=http%3A%2F%2Fstatic.lolesports.com%2Fteams%2F1630017899610_zeta.png" },
-    { name:"DFM",         region:"PAC",  rating:0, logo:"https://am-a.akamaihd.net/image?resize=3840:&f=http%3A%2F%2Fstatic.lolesports.com%2Fteams%2F1675669923678_190px-DetonatioN_FocusMe_2022_darkmode1.png" },
-    { name:"RRQ",         region:"PAC",  rating:0, logo:"https://am-a.akamaihd.net/image?resize=3840:&f=http%3A%2F%2Fstatic.lolesports.com%2Fteams%2F1707306458590_LOGO_RRQ_orange.png" },
-    { name:"TLN",         region:"PAC",  rating:0, logo:"https://am-a.akamaihd.net/image?resize=3840:&f=http%3A%2F%2Fstatic.lolesports.com%2Fteams%2F1674056858749_Talon_Esports_logo1.png" },
-    { name:"GE",          region:"PAC",  rating:0, logo:"https://am-a.akamaihd.net/image?resize=3840:&f=http%3A%2F%2Fstatic.lolesports.com%2Fteams%2F1677137854820_GERedandBlue-WhiteBG.png" },
-    { name:"BME",         region:"PAC",  rating:0, logo:"https://am-a.akamaihd.net/image?resize=3840:&f=http%3A%2F%2Fstatic.lolesports.com%2Fteams%2F1739254331177_boom.png" },
-    { name:"NS",          region:"PAC",  rating:0, logo:"https://am-a.akamaihd.net/image?resize=3840:&f=http%3A%2F%2Fstatic.lolesports.com%2Fteams%2F1674219422693_NS_.png" },
-    { name:"EDG",         region:"CN",   rating:0, logo:"https://am-a.akamaihd.net/image?resize=3840:&f=http%3A%2F%2Fstatic.lolesports.com%2Fteams%2F1735920597800_edg1.png" },
-    { name:"BLG",         region:"CN",   rating:0, logo:"https://am-a.akamaihd.net/image?resize=3840:&f=http%3A%2F%2Fstatic.lolesports.com%2Fteams%2F1707126028220_BLG.png" },
-    { name:"FPX",         region:"CN",   rating:0, logo:"https://am-a.akamaihd.net/image?resize=3840:&f=http%3A%2F%2Fstatic.lolesports.com%2Fteams%2F1644542485597_download38.png" },
-    { name:"TE",          region:"CN",   rating:0, logo:"https://am-a.akamaihd.net/image?resize=3840:&f=http%3A%2F%2Fstatic.lolesports.com%2Fteams%2F1736345448590_TE.png" },
-    { name:"DRG",         region:"CN",   rating:0, logo:"https://am-a.akamaihd.net/image?resize=3840:&f=http%3A%2F%2Fstatic.lolesports.com%2Fteams%2F1707126143797_DRG.png" },
-    { name:"WOL",         region:"CN",   rating:0, logo:"https://am-a.akamaihd.net/image?resize=3840:&f=http%3A%2F%2Fstatic.lolesports.com%2Fteams%2F1707126969882_WOL.png" },
-    { name:"NOVA",        region:"CN",   rating:0, logo:"https://am-a.akamaihd.net/image?resize=3840:&f=http%3A%2F%2Fstatic.lolesports.com%2Fteams%2F1741178535000_NOVA.png" },
-    { name:"TYL",         region:"CN",   rating:0, logo:"https://am-a.akamaihd.net/image?resize=3840:&f=http%3A%2F%2Fstatic.lolesports.com%2Fteams%2F1768990500116_TYLLOGO.png" },
-    { name:"AG",          region:"CN",   rating:0, logo:"https://am-a.akamaihd.net/image?resize=3840:&f=http%3A%2F%2Fstatic.lolesports.com%2Fteams%2F1707126806655_AG.png" },
-    { name:"TEC",         region:"CN",   rating:0, logo:"https://am-a.akamaihd.net/image?resize=3840:&f=http%3A%2F%2Fstatic.lolesports.com%2Fteams%2F1707127134615_TEC.png" },
-    { name:"XLG",         region:"CN",   rating:0, logo:"https://am-a.akamaihd.net/image?resize=3840:&f=http%3A%2F%2Fstatic.lolesports.com%2Fteams%2F1735920774181_XLGA.PNG" },
-    { name:"JDG",         region:"CN",   rating:0, logo:"https://am-a.akamaihd.net/image?resize=3840:&f=http%3A%2F%2Fstatic.lolesports.com%2Fteams%2F1707126862498_JDG.png" }
-];
 
 // ─── K Factor by phase ───────────────────────────────────────────────────────
 function getKFactor(phase) {
@@ -726,6 +672,10 @@ class Simulator {
         document.getElementById('btnConfirmDraft').style.display = 'block';
         document.getElementById('progressBar').style.width = '0%';
 
+        const needed = (this.activeGroups || 8) * 4;
+        document.getElementById('draftInstructions').innerHTML =
+            `Selecione exatamente <strong style="color:var(--liquid-blue)">${needed} times</strong> para compor os <strong>${this.activeGroups}</strong> grupos`;
+
         const qualSet = (highlightQuals && this._qualImportNames) ? this._qualImportNames : new Set();
 
         const grid = document.getElementById('draftGrid');
@@ -754,6 +704,41 @@ class Simulator {
         this.save(); this.updateButtonState();
     }
 
+    // Auto-seleciona TL + top times por ELO até completar o número necessário
+    smartSelectDraft() {
+        const needed  = (this.activeGroups || 8) * 4;
+        const sorted  = [...this.fullPool].sort((a, b) => (b.rating || 0) - (a.rating || 0));
+        this.draftSelected.clear();
+        for (const t of sorted) {
+            if (this.draftSelected.size >= needed) break;
+            this.draftSelected.add(t.id);
+        }
+        // Garante TL
+        const tl = this.fullPool.find(t => t.isManual);
+        if (tl && !this.draftSelected.has(tl.id)) {
+            // Remove o último e adiciona TL
+            const last = [...this.draftSelected].pop();
+            this.draftSelected.delete(last);
+            this.draftSelected.add(tl.id);
+        }
+        document.querySelectorAll('.team-card-draft').forEach(el => {
+            const id = el.id.replace('draft_', '');
+            el.classList.toggle('selected', this.draftSelected.has(id));
+        });
+        this.updateDraftCounter();
+    }
+
+    clearDraft() {
+        this.draftSelected.clear();
+        const tl = this.fullPool.find(t => t.isManual);
+        if (tl) this.draftSelected.add(tl.id);
+        document.querySelectorAll('.team-card-draft').forEach(el => {
+            const id = el.id.replace('draft_', '');
+            el.classList.toggle('selected', this.draftSelected.has(id));
+        });
+        this.updateDraftCounter();
+    }
+
     toggleDraft(id) {
         const el = document.getElementById(`draft_${id}`);
         if (this.draftSelected.has(id)) { this.draftSelected.delete(id); el.classList.remove('selected'); }
@@ -762,6 +747,11 @@ class Simulator {
     }
 
     selectAllDraft() {
+        const needed = (this.activeGroups || 8) * 4;
+        if (this.fullPool.length > needed) {
+            this.smartSelectDraft(); // se tem mais times que o necessário, usa top X
+            return;
+        }
         this.fullPool.forEach(t => this.draftSelected.add(t.id));
         document.querySelectorAll('.team-card-draft').forEach(el => el.classList.add('selected'));
         this.updateDraftCounter();
@@ -1107,6 +1097,7 @@ class Simulator {
         const loser  = wM > wE ? enemy  : manual;
         match.played = true;
         this.resolveMatchStats(winner, loser, `${Math.max(wM,wE)}-${Math.min(wM,wE)}`, maps, match);
+        this.manualMatchPending = null; // ← limpa ANTES de fechar e renderizar
         this.closeModal();
         if (this.currentPhase === 'GROUPS') {
             const remaining = this.schedule.filter(m => m.round === this.currentGroupRound && !m.played).length;
@@ -1116,6 +1107,7 @@ class Simulator {
     }
 
     closeModal() {
+        this.manualMatchPending = null; // garante limpeza mesmo se chamado diretamente
         document.getElementById('manualModal').style.display = 'none';
     }
 
@@ -1496,6 +1488,7 @@ class Simulator {
     // ── Reset ────────────────────────────────────────────────────────────────
     resetToFactory() {
         if (confirm('WIPE TOTAL?\nApaga ELO, troféus, histórico de carreira e reinicia tudo do zero.')) {
+            saveSeasonSnapshot(`CHAMPION S${this.seasonNumber||'?'}`);
             DB.removeAll([CURRENT_KEY, ELO_KEY, ARCHIVE_KEY, CHAMPS_KEY, TL_STATS_KEY]);
             location.reload();
         }
