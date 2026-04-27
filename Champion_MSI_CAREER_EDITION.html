@@ -458,8 +458,7 @@
 
 <script>
 // ─── Storage Keys ───────────────────────────────────────────────────────────
-// ELO_KEY, TL_STATS_KEY, QUALIFIER_KEY, CHAMPS_KEY, ARCHIVE_KEY vêm do shared.js
-const CURRENT_KEY = CHAMPION_KEY; // alias local → 'msi_save_v15_zero'
+
 
 // ─── Teams Data ──────────────────────────────────────────────────────────────
 
@@ -923,6 +922,7 @@ class Simulator {
     // ── Round Execution ──────────────────────────────────────────────────────
     playRound() {
         if (this.currentPhase === 'GROUPS') this.executeGroupRound();
+        else if (this.currentPhase === 'REPECHAGE') this.executeKnockoutPhase();
         else if (this.currentPhase !== 'FINISHED' && this.currentPhase !== 'DRAFT') this.executeKnockoutPhase();
     }
 
@@ -969,13 +969,34 @@ class Simulator {
 
     // ── FIX: advancePhase filters by current phase only ─────────────────────
     advancePhase() {
+        // Se estamos saindo da REPESCAGEM: preenche os slots t2 do KO principal
+        if (this.currentPhase === 'REPECHAGE') {
+            const repMatches = this.knockoutMatches.filter(m => m.phase === 'REPECHAGE');
+            const koMatches  = this.knockoutMatches.filter(m => m.phase !== 'REPECHAGE');
+
+            repMatches.forEach((rep, i) => {
+                if (rep.winner) {
+                    rep.winner.qualified = true;
+                    // Encontra o match KO que este slot de repesca alimenta
+                    const koMatch = this.knockoutMatches.find(m => m.phase !== 'REPECHAGE' && m._repSlot === i);
+                    if (koMatch) koMatch.t2 = rep.winner;
+                }
+            });
+
+            // Avança para a primeira fase KO
+            const firstKO = this.knockoutMatches.find(m => m.phase !== 'REPECHAGE');
+            this.currentPhase = firstKO ? firstKO.phase : 'QUARTERS';
+            this.save(); this.render(); this.updateButtonState();
+            return;
+        }
+
         this.knockoutMatches.forEach((m, idx) => {
             if (m.phase === this.currentPhase && m.played && m.winner && m.nextMatchIdx !== null) {
                 const nextM = this.knockoutMatches[m.nextMatchIdx];
                 if (nextM) { if (idx % 2 === 0) nextM.t1 = m.winner; else nextM.t2 = m.winner; }
             }
         });
-        const phases = ['RO32','RO16','QUARTERS','SEMIS','FINAL'];
+        const phases = ['REPECHAGE','RO32','RO16','QUARTERS','SEMIS','FINAL'];
         const idx = phases.indexOf(this.currentPhase);
         if (idx === -1) return;
         if (this.currentPhase === 'FINAL') { if (this.knockoutMatches[this.knockoutMatches.length-1].played) { this.finishTournament(); return; } }
@@ -984,15 +1005,129 @@ class Simulator {
     }
 
     advanceToKnockout() {
-        let qualifiers = {};
+        // ── Coleta classificados por grupo ────────────────────────────────────
+        const groupRanks = {};
         Object.keys(this.groups).forEach(g => {
-            let t = [...this.groups[g]];
-            t.sort((a,b) => b.points - a.points || b.wins - a.wins || b.rating - a.rating);
-            qualifiers[g] = [t[0], t[1]];
-            t[0].qualified = t[1].qualified = true;
+            const t = [...this.groups[g]].sort((a,b) => b.points-a.points||b.wins-a.wins||b.rating-a.rating);
+            groupRanks[g] = t;
         });
 
         if (this.activeGroups === 4) {
+            // Top 1 por grupo → classificado direto (4 times)
+            // 2º e 3º por grupo → repescagem (8 times → 4 vencedores)
+            // Quartas: 4 diretos + 4 repescagem = 8 ✓
+            const directs = Object.keys(groupRanks).map(g => { groupRanks[g][0].qualified = true; return groupRanks[g][0]; });
+            const repTeams = [];
+            Object.keys(groupRanks).forEach(g => {
+                // 2º e 3º vão à repescagem
+                repTeams.push(groupRanks[g][1]);
+                if (groupRanks[g][2]) repTeams.push(groupRanks[g][2]);
+            });
+            // Ordena repescagem: melhor vs pior
+            repTeams.sort((a,b) => b.points-a.points||b.wins-a.wins||b.rating-a.rating);
+            this._buildRepechage(directs, repTeams, 'QUARTERS', 4);
+
+        } else if (this.activeGroups === 8) {
+            // Top 1 por grupo → direto (8 times)
+            // 2º e 3º por grupo → repescagem (16 times → 8 vencedores)
+            // RO16: 8 diretos + 8 repescagem = 16 ✓
+            const directs = Object.keys(groupRanks).map(g => { groupRanks[g][0].qualified = true; return groupRanks[g][0]; });
+            const repTeams = [];
+            Object.keys(groupRanks).forEach(g => {
+                repTeams.push(groupRanks[g][1]);
+                if (groupRanks[g][2]) repTeams.push(groupRanks[g][2]);
+            });
+            repTeams.sort((a,b) => b.points-a.points||b.wins-a.wins||b.rating-a.rating);
+            this._buildRepechage(directs, repTeams, 'RO16', 8);
+
+        } else if (this.activeGroups === 12) {
+            // Formato original: top 2 direto + 8 melhores 3ºs
+            let top24 = [], thirds = [];
+            Object.keys(this.groups).forEach(g => {
+                const t = this.groups[g];
+                t[0].qualified = t[1].qualified = true;
+                top24.push(t[0], t[1]);
+                thirds.push(t[2]);
+            });
+            thirds.sort((a,b) => b.points-a.points||b.wins-a.wins||b.rating-a.rating);
+            for (let i=0; i<8; i++) { thirds[i].qualified = true; top24.push(thirds[i]); }
+            this.knockoutMatches = [];
+            for (let i=0; i<16; i++) this.knockoutMatches.push({phase:'RO32',t1:top24[i],t2:top24[31-i],nextMatchIdx:16+Math.floor(i/2),played:false,winner:null,score:null});
+            for (let i=0; i<8;  i++) this.knockoutMatches.push({phase:'RO16',t1:null,t2:null,nextMatchIdx:24+Math.floor(i/2),played:false,winner:null,score:null});
+            for (let i=0; i<4;  i++) this.knockoutMatches.push({phase:'QUARTERS',t1:null,t2:null,nextMatchIdx:28+Math.floor(i/2),played:false,winner:null,score:null});
+            for (let i=0; i<2;  i++) this.knockoutMatches.push({phase:'SEMIS',t1:null,t2:null,nextMatchIdx:30,played:false,winner:null,score:null});
+            this.knockoutMatches.push({phase:'FINAL',t1:null,t2:null,nextMatchIdx:null,played:false,winner:null,score:null});
+            this.currentPhase = 'RO32';
+        }
+
+        this.save(); this.render(); this.updateButtonState();
+    }
+
+    // ── Constrói repescagem + mata-mata ──────────────────────────────────────
+    _buildRepechage(directs, repTeams, firstKOPhase, koSize) {
+        this.knockoutMatches = [];
+
+        const repCount = repTeams.length; // número de times na repescagem
+        const repMatches = Math.floor(repCount / 2);
+
+        // Matches de REPESCAGEM (melhor[i] vs pior[repCount-1-i])
+        for (let i = 0; i < repMatches; i++) {
+            const nextIdx = repMatches + i; // vai para a slot correspondente no KO
+            this.knockoutMatches.push({
+                phase: 'REPECHAGE',
+                t1: repTeams[i],
+                t2: repTeams[repCount - 1 - i],
+                nextMatchIdx: nextIdx,
+                played: false, winner: null, score: null,
+                _slot: i // qual slot do KO o vencedor ocupa
+            });
+        }
+
+        // Slots do mata-mata principal (koSize times: directs + vencedores da repescagem)
+        // directs ficam como seeds 1..N nos slots pares, repescagem preenche slots ímpares
+        const allSeeds = [...directs]; // os diretos são seeds fixos
+        // Gera matches do fase KO com placeholders para os vindouros da repescagem
+        if (firstKOPhase === 'QUARTERS') {
+            // 8 times: 4 diretos + 4 repescagem
+            const baseIdx = repMatches;
+            for (let i = 0; i < 4; i++) {
+                const nextKO = baseIdx + 4 + Math.floor(i/2);
+                this.knockoutMatches.push({
+                    phase: 'QUARTERS',
+                    t1: allSeeds[i * 2] || null,    // seed direto
+                    t2: null,                         // preenchido pelo vencedor da repesca
+                    _repSlot: i,                      // qual match de repesca alimenta aqui
+                    nextMatchIdx: nextKO,
+                    played: false, winner: null, score: null
+                });
+            }
+            for (let i = 0; i < 2; i++) {
+                const nextKO = baseIdx + 4 + 2 + i;
+                this.knockoutMatches.push({ phase:'SEMIS', t1:null, t2:null, nextMatchIdx: baseIdx+4+2+2, played:false, winner:null, score:null });
+            }
+            this.knockoutMatches.push({ phase:'FINAL', t1:null, t2:null, nextMatchIdx:null, played:false, winner:null, score:null });
+            this.currentPhase = 'REPECHAGE';
+
+        } else if (firstKOPhase === 'RO16') {
+            // 16 times: 8 diretos + 8 repescagem
+            const baseIdx = repMatches;
+            for (let i = 0; i < 8; i++) {
+                const nextKO = baseIdx + 8 + Math.floor(i/2);
+                this.knockoutMatches.push({
+                    phase: 'RO16',
+                    t1: allSeeds[i] || null,
+                    t2: null,
+                    _repSlot: i,
+                    nextMatchIdx: nextKO,
+                    played: false, winner: null, score: null
+                });
+            }
+            for (let i = 0; i < 4; i++) this.knockoutMatches.push({ phase:'QUARTERS', t1:null, t2:null, nextMatchIdx: baseIdx+8+4+Math.floor(i/2), played:false, winner:null, score:null });
+            for (let i = 0; i < 2; i++) this.knockoutMatches.push({ phase:'SEMIS',    t1:null, t2:null, nextMatchIdx: baseIdx+8+4+2+2,             played:false, winner:null, score:null });
+            this.knockoutMatches.push(    { phase:'FINAL',   t1:null, t2:null, nextMatchIdx:null,                    played:false, winner:null, score:null });
+            this.currentPhase = 'REPECHAGE';
+        }
+    }
             this.knockoutMatches = [
                 {phase:'QUARTERS', t1:qualifiers['A'][0], t2:qualifiers['B'][1], nextMatchIdx:4},
                 {phase:'QUARTERS', t1:qualifiers['C'][0], t2:qualifiers['D'][1], nextMatchIdx:4},
@@ -1129,7 +1264,7 @@ class Simulator {
 
     // ── Render ───────────────────────────────────────────────────────────────
     getPhaseName() {
-        const map = { DRAFT:'DRAFTING', GROUPS:`FASE DE GRUPOS (R${this.currentGroupRound})`, RO32:'16-AVOS DE FINAL', RO16:'OITAVAS DE FINAL', QUARTERS:'QUARTAS DE FINAL', SEMIS:'SEMIFINAL', FINAL:'GRANDE FINAL', FINISHED:'TORNEIO FINALIZADO' };
+        const map = { DRAFT:'DRAFTING', GROUPS:`FASE DE GRUPOS (R${this.currentGroupRound})`, REPECHAGE:'REPESCAGEM', RO32:'16-AVOS DE FINAL', RO16:'OITAVAS DE FINAL', QUARTERS:'QUARTAS DE FINAL', SEMIS:'SEMIFINAL', FINAL:'GRANDE FINAL', FINISHED:'TORNEIO FINALIZADO' };
         return map[this.currentPhase] || this.currentPhase;
     }
 
@@ -1152,15 +1287,115 @@ class Simulator {
         if (this.currentPhase === 'GROUPS') {
             container.className = 'main-container';
             Object.keys(this.groups).forEach(g => {
-                const t = [...this.groups[g]].sort((a,b) => b.points-a.points||b.wins-a.wins);
-                container.innerHTML += `<div class="group-card"><h3>GRUPO ${g}</h3><table><thead><tr><th>Time</th><th>Pts</th><th>Tier</th></tr></thead><tbody>${
-                    t.map(tm => `<tr class="${tm.isManual?'manual-team':''} ${tm.qualified?'qualified':''}">
-                        <td><span class="reg-tag reg-${tm.region}">${tm.region}</span><img src="${tm.logo||DEFAULT_LOGO}" class="team-logo">${tm.name}${this.getStatusIcon(tm)}</td>
-                        <td>${tm.points}</td><td>${this.getRankTier(tm.rating)}</td></tr>`).join('')
-                }</tbody></table></div>`;
+                const allTeams = [...this.groups[g]].sort((a,b) => b.points-a.points||b.wins-a.wins);
+                const groupMatches = this.schedule.filter(m => m.group === g);
+                const pending = groupMatches.filter(m => !m.played);
+                const played  = groupMatches.filter(m => m.played).length;
+
+                // ── Win chance por time nos jogos pendentes ──────────────────
+                const scenarioRows = allTeams.map(tm => {
+                    const myPending = pending.filter(m => m.t1 === tm || m.t2 === tm);
+                    const winsNeeded = 2 - (tm.points / 3); // pontos → vitórias (3pts cada)
+                    const gamesLeft  = myPending.length;
+
+                    // Chance geral de classificar via ELO (simulação Monte Carlo leve)
+                    let simWins = 0;
+                    const SIMS = 200;
+                    for (let s = 0; s < SIMS; s++) {
+                        let pts = tm.points;
+                        myPending.forEach(m => {
+                            const opp  = m.t1 === tm ? m.t2 : m.t1;
+                            const r1   = tm.rating || 0;
+                            const r2   = opp.rating || 0;
+                            const prob = Math.max(5, Math.min(95, 100 / (1 + Math.pow(10, (r2-r1)/400))));
+                            if (Math.random() * 100 <= prob) pts += 3;
+                        });
+                        // Verifica se classificaria (top 2 do grupo)
+                        const others = allTeams.filter(x => x !== tm).map(x => {
+                            let p = x.points;
+                            pending.filter(m2 => m2.t1 === x || m2.t2 === x).forEach(m2 => {
+                                const opp2 = m2.t1 === x ? m2.t2 : m2.t1;
+                                if (Math.random() * 100 <= 50) p += 3;
+                            });
+                            return p;
+                        }).sort((a,b) => b-a);
+                        const pos = [pts, ...others].sort((a,b) => b-a).indexOf(pts);
+                        if (pos < 2) simWins++;
+                    }
+                    const qualChance = Math.round((simWins / SIMS) * 100);
+
+                    // Jogos que o time pode perder e ainda classificar
+                    const canLose = myPending.filter(m => {
+                        const opp = m.t1 === tm ? m.t2 : m.t1;
+                        // Simula: perde esse jogo, vence todos os outros — classifica?
+                        const ptsIfLose = tm.points + (gamesLeft - 1) * 3;
+                        // Precisa de pelo menos 6 pts (2 vitórias em 3 jogos) para ter chance
+                        return ptsIfLose >= 6;
+                    });
+
+                    const mustWin  = myPending.filter(m => !canLose.includes(m));
+                    const color    = qualChance >= 70 ? '#42f590' : qualChance >= 40 ? '#ffd700' : '#ff4655';
+                    const bar      = `<div style="background:#111;border-radius:3px;height:4px;overflow:hidden;width:60px;display:inline-block;vertical-align:middle;margin-left:6px"><div style="width:${qualChance}%;height:100%;background:${color};border-radius:3px"></div></div>`;
+                    const isRepFormat = [4,8].includes(this.activeGroups);
+
+                    const oppNames = (matches) => matches.map(m => {
+                        const opp = m.t1 === tm ? m.t2 : m.t1;
+                        return `<img src="${opp.logo||DEFAULT_LOGO}" style="width:12px;height:12px;object-fit:contain;vertical-align:middle"> ${opp.name}`;
+                    }).join(', ') || '—';
+
+                    // Destino projetado com base na posição atual
+                    const currentPos = allTeams.indexOf(tm);
+                    const fateTag = isRepFormat
+                        ? (currentPos === 0 ? `<span style="color:#42f590;font-size:0.65rem">🥇 Direto</span>`
+                         : currentPos <= 2  ? `<span style="color:#ff9d00;font-size:0.65rem">🔁 Repescagem</span>`
+                         :                    `<span style="color:#ff4655;font-size:0.65rem">❌ Eliminado</span>`)
+                        : (currentPos < 2   ? `<span style="color:#42f590;font-size:0.65rem">✅ Classificado</span>`
+                         :                    `<span style="color:#ff4655;font-size:0.65rem">❌ Eliminado</span>`);
+
+                    return `<tr class="${tm.isManual?'manual-team':''} ${tm.qualified?'qualified':''}">
+                        <td style="min-width:90px">
+                            <div style="display:flex;align-items:center;gap:4px">
+                                <img src="${tm.logo||DEFAULT_LOGO}" class="team-logo">
+                                <span>${tm.name}</span>
+                                ${this.getStatusIcon(tm)}
+                            </div>
+                        </td>
+                        <td style="text-align:center">${tm.points}</td>
+                        <td style="text-align:center">
+                            <span style="font-family:monospace;font-weight:bold;color:${color}">${qualChance}%</span>${bar}
+                        </td>
+                        <td>${fateTag}</td>
+                        <td style="font-size:0.68rem;color:#888">
+                            ${mustWin.length > 0
+                                ? `<span style="color:#ff4655">⚠ ${oppNames(mustWin)}</span>`
+                                : `<span style="color:#42f590">✓ Seguro</span>`}
+                        </td>
+                        <td style="font-size:0.68rem;color:#555">
+                            ${canLose.length > 0 ? `Pode perder: ${oppNames(canLose)}` : gamesLeft === 0 ? '—' : 'Nenhum'}
+                        </td>
+                    </tr>`;
+                }).join('');
+
+                container.innerHTML += `
+                <div class="group-card" style="width:auto;min-width:340px;max-width:600px;">
+                    <h3>GRUPO ${g} <span style="font-size:0.7rem;color:#555;font-weight:normal;margin-left:6px">${played}/6 jogos</span></h3>
+                    <table style="width:100%">
+                        <thead>
+                            <tr>
+                                <th>Time</th>
+                                <th style="text-align:center">Pts</th>
+                                <th style="text-align:center">Classificação</th>
+                                <th style="font-size:0.65rem">Destino</th>
+                                <th style="font-size:0.65rem">Cenário</th>
+                                <th style="font-size:0.65rem">Margem</th>
+                            </tr>
+                        </thead>
+                        <tbody>${scenarioRows}</tbody>
+                    </table>
+                </div>`;
             });
-            const played = this.schedule.filter(m=>m.played).length;
-            document.getElementById('progressBar').style.width = (played/this.schedule.length)*100+'%';
+            const playedTotal = this.schedule.filter(m=>m.played).length;
+            document.getElementById('progressBar').style.width = (playedTotal/this.schedule.length)*100+'%';
         } else if (this.currentPhase !== 'DRAFT') {
             container.className = 'bracket-container';
             const renderMatch = m => {
@@ -1178,6 +1413,7 @@ class Simulator {
             };
 
             let html = '';
+            if (this.knockoutMatches.some(m=>m.phase==='REPECHAGE')) html += `<div class="bracket-column" style="border-left:2px solid rgba(255,150,0,0.3)"><div class="bracket-header" style="color:#ff9d00">🔁 REPESCAGEM</div>${this.knockoutMatches.filter(m=>m.phase==='REPECHAGE').map(renderMatch).join('')}</div>`;
             if (this.activeGroups === 12) html += `<div class="bracket-column"><div class="bracket-header">16-Avos</div>${this.knockoutMatches.filter(m=>m.phase==='RO32').map(renderMatch).join('')}</div>`;
             if (this.activeGroups >= 8)  html += `<div class="bracket-column"><div class="bracket-header">Oitavas</div>${this.knockoutMatches.filter(m=>m.phase==='RO16').map(renderMatch).join('')}</div>`;
             html += `<div class="bracket-column"><div class="bracket-header">Quartas</div>${this.knockoutMatches.filter(m=>m.phase==='QUARTERS').map(renderMatch).join('')}</div>`;
