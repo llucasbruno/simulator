@@ -568,15 +568,7 @@ class MastersSimulator {
         document.getElementById('phaseDisplay').innerText=this.getPhaseName();
         const c=document.getElementById('mainDisplay'); c.innerHTML='';
         if(this.currentPhase==='GROUPS'){
-            c.className='main-container';
-            Object.keys(this.groups).forEach(g=>{
-                const t=[...this.groups[g]].sort((a,b)=>b.points-a.points||b.wins-a.wins);
-                c.innerHTML+=`<div class="group-card"><h3>GRUPO ${g}</h3><table><thead><tr><th>Time</th><th>Pts</th><th>Tier</th></tr></thead><tbody>${
-                    t.map((tm,i)=>`<tr class="${tm.isManual?'manual-row':''} ${i<2?'qualified-row':''}">
-                        <td><span class="qualifier-dot"></span><span class="reg-tag reg-${tm.region}">${tm.region}</span><img src="${tm.logo||DEFAULT_LOGO}" class="team-logo">${tm.name}</td>
-                        <td>${tm.points}</td><td>${this.getTier(tm.rating)}</td></tr>`).join('')
-                }</tbody></table></div>`;
-            });
+            this._renderGroupsWithChances(this.groups, this.schedule, c);
             const played=this.schedule.filter(m=>m.played).length;
             document.getElementById('progressBar').style.width=(played/Math.max(this.schedule.length,1))*100+'%';
         } else if(!['IDLE','FINISHED'].includes(this.currentPhase)){
