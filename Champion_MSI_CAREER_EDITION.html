@@ -1128,50 +1128,6 @@ class Simulator {
             this.currentPhase = 'REPECHAGE';
         }
     }
-            this.knockoutMatches = [
-                {phase:'QUARTERS', t1:qualifiers['A'][0], t2:qualifiers['B'][1], nextMatchIdx:4},
-                {phase:'QUARTERS', t1:qualifiers['C'][0], t2:qualifiers['D'][1], nextMatchIdx:4},
-                {phase:'QUARTERS', t1:qualifiers['B'][0], t2:qualifiers['A'][1], nextMatchIdx:5},
-                {phase:'QUARTERS', t1:qualifiers['D'][0], t2:qualifiers['C'][1], nextMatchIdx:5},
-                {phase:'SEMIS',    t1:null, t2:null, nextMatchIdx:6},
-                {phase:'SEMIS',    t1:null, t2:null, nextMatchIdx:6},
-                {phase:'FINAL',    t1:null, t2:null, nextMatchIdx:null}
-            ].map(m => ({...m, played:false, winner:null, score:null}));
-            this.currentPhase = 'QUARTERS';
-        } else if (this.activeGroups === 8) {
-            this.knockoutMatches = [
-                {phase:'RO16',    t1:qualifiers['A'][0], t2:qualifiers['B'][1], nextMatchIdx:8},
-                {phase:'RO16',    t1:qualifiers['C'][0], t2:qualifiers['D'][1], nextMatchIdx:8},
-                {phase:'RO16',    t1:qualifiers['E'][0], t2:qualifiers['F'][1], nextMatchIdx:9},
-                {phase:'RO16',    t1:qualifiers['G'][0], t2:qualifiers['H'][1], nextMatchIdx:9},
-                {phase:'RO16',    t1:qualifiers['B'][0], t2:qualifiers['A'][1], nextMatchIdx:10},
-                {phase:'RO16',    t1:qualifiers['D'][0], t2:qualifiers['C'][1], nextMatchIdx:10},
-                {phase:'RO16',    t1:qualifiers['F'][0], t2:qualifiers['E'][1], nextMatchIdx:11},
-                {phase:'RO16',    t1:qualifiers['H'][0], t2:qualifiers['G'][1], nextMatchIdx:11},
-                {phase:'QUARTERS',t1:null, t2:null, nextMatchIdx:12},
-                {phase:'QUARTERS',t1:null, t2:null, nextMatchIdx:12},
-                {phase:'QUARTERS',t1:null, t2:null, nextMatchIdx:13},
-                {phase:'QUARTERS',t1:null, t2:null, nextMatchIdx:13},
-                {phase:'SEMIS',   t1:null, t2:null, nextMatchIdx:14},
-                {phase:'SEMIS',   t1:null, t2:null, nextMatchIdx:14},
-                {phase:'FINAL',   t1:null, t2:null, nextMatchIdx:null}
-            ].map(m => ({...m, played:false, winner:null, score:null}));
-            this.currentPhase = 'RO16';
-        } else if (this.activeGroups === 12) {
-            let top24 = [], thirds = [];
-            Object.keys(this.groups).forEach(g => { const t=this.groups[g]; top24.push(t[0],t[1]); thirds.push(t[2]); });
-            thirds.sort((a,b) => b.points-a.points||b.wins-a.wins||b.rating-a.rating);
-            for(let i=0;i<8;i++){thirds[i].qualified=true; top24.push(thirds[i]);}
-            this.knockoutMatches = [];
-            for(let i=0;i<16;i++) this.knockoutMatches.push({phase:'RO32',t1:top24[i],t2:top24[31-i],nextMatchIdx:16+Math.floor(i/2),played:false,winner:null,score:null});
-            for(let i=0;i<8;i++)  this.knockoutMatches.push({phase:'RO16',t1:null,t2:null,nextMatchIdx:24+Math.floor(i/2),played:false,winner:null,score:null});
-            for(let i=0;i<4;i++)  this.knockoutMatches.push({phase:'QUARTERS',t1:null,t2:null,nextMatchIdx:28+Math.floor(i/2),played:false,winner:null,score:null});
-            for(let i=0;i<2;i++)  this.knockoutMatches.push({phase:'SEMIS',t1:null,t2:null,nextMatchIdx:30,played:false,winner:null,score:null});
-            this.knockoutMatches.push({phase:'FINAL',t1:null,t2:null,nextMatchIdx:null,played:false,winner:null,score:null});
-            this.currentPhase = 'RO32';
-        }
-        this.save(); this.render(); this.updateButtonState();
-    }
 
     // ── Modal ────────────────────────────────────────────────────────────────
     openModal(match, bestOf) {
