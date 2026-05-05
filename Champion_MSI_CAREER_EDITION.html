@@ -1280,13 +1280,28 @@ class Simulator {
                     }
                     const qualChance = Math.round((simWins / SIMS) * 100);
 
-                    // Jogos que o time pode perder e ainda classificar
-                    const canLose = myPending.filter(m => {
-                        const opp = m.t1 === tm ? m.t2 : m.t1;
-                        // Simula: perde esse jogo, vence todos os outros — classifica?
-                        const ptsIfLose = tm.points + (gamesLeft - 1) * 3;
-                        // Precisa de pelo menos 6 pts (2 vitórias em 3 jogos) para ter chance
-                        return ptsIfLose >= 6;
+                    // ── Pode perder: simula cada jogo individualmente ────────
+                    // Para cada jogo pendente, verifica: se perder esse mas vencer
+                    // todos os outros, ainda ficaria top 2?
+                    const canLose = myPending.filter(lostMatch => {
+                        let ptsIfLose = tm.points; // perde lostMatch → 0 pts
+                        myPending.forEach(m => {
+                            if (m !== lostMatch) ptsIfLose += 3; // vence todos os outros
+                        });
+                        // Simula os pontos dos adversários se TM vencer todos exceto lostMatch
+                        const othersMinPts = allTeams.filter(x => x !== tm).map(x => {
+                            let p = x.points;
+                            // Adversários ganham seus jogos contra TM (se perder lostMatch, TM perde aquele)
+                            pending.filter(m => (m.t1 === x || m.t2 === x)).forEach(m => {
+                                // Se esse jogo é o que TM perdeu, o oponente ganha
+                                if (m === lostMatch) p += 3;
+                                // Nos demais, TM vence, então o oponente não ganha
+                            });
+                            return p;
+                        }).sort((a, b) => b - a);
+                        // Verifica se TM ficaria top 2 nesse cenário
+                        const rank = [ptsIfLose, ...othersMinPts].sort((a,b)=>b-a).indexOf(ptsIfLose);
+                        return rank < 2;
                     });
 
                     const mustWin  = myPending.filter(m => !canLose.includes(m));
@@ -1299,14 +1314,41 @@ class Simulator {
                         return `<img src="${opp.logo||DEFAULT_LOGO}" style="width:12px;height:12px;object-fit:contain;vertical-align:middle"> ${opp.name}`;
                     }).join(', ') || '—';
 
-                    // Destino projetado com base na posição atual
-                    const currentPos = allTeams.indexOf(tm);
-                    const fateTag = isRepFormat
-                        ? (currentPos === 0 ? `<span style="color:#42f590;font-size:0.65rem">🥇 Direto</span>`
-                         : currentPos <= 2  ? `<span style="color:#ff9d00;font-size:0.65rem">🔁 Repescagem</span>`
-                         :                    `<span style="color:#ff4655;font-size:0.65rem">❌ Eliminado</span>`)
-                        : (currentPos < 2   ? `<span style="color:#42f590;font-size:0.65rem">✅ Classificado</span>`
-                         :                    `<span style="color:#ff4655;font-size:0.65rem">❌ Eliminado</span>`);
+                    // ── Destino: baseado nos pontos atuais (não na posição do array) ──
+                    // Projeta o melhor e pior cenário possível para determinar o destino
+                    const maxPts  = tm.points + gamesLeft * 3; // vencer tudo
+                    const curRank = allTeams.indexOf(tm); // posição atual por pts
+
+                    let fateTag;
+                    if (gamesLeft === 0) {
+                        // Todos os jogos jogados — resultado definido
+                        if (isRepFormat) {
+                            fateTag = curRank === 0
+                                ? `<span style="color:#42f590;font-size:0.65rem">🥇 Direto</span>`
+                                : curRank <= 2
+                                ? `<span style="color:#ff9d00;font-size:0.65rem">🔁 Repescagem</span>`
+                                : `<span style="color:#ff4655;font-size:0.65rem">❌ Eliminado</span>`;
+                        } else {
+                            fateTag = curRank < 2
+                                ? `<span style="color:#42f590;font-size:0.65rem">✅ Classificado</span>`
+                                : `<span style="color:#ff4655;font-size:0.65rem">❌ Eliminado</span>`;
+                        }
+                    } else if (mustWin.length === 0 && canLose.length === gamesLeft) {
+                        // Já classificado matematicamente
+                        fateTag = isRepFormat
+                            ? `<span style="color:#42f590;font-size:0.65rem">🥇 Garantido</span>`
+                            : `<span style="color:#42f590;font-size:0.65rem">✅ Garantido</span>`;
+                    } else if (maxPts < 6) {
+                        // Matematicamente eliminado
+                        fateTag = `<span style="color:#ff4655;font-size:0.65rem">❌ Eliminado</span>`;
+                    } else {
+                        // Em aberto — mostra chance via cor
+                        fateTag = qualChance >= 65
+                            ? `<span style="color:#42f590;font-size:0.65rem">🟢 Favorito</span>`
+                            : qualChance >= 35
+                            ? `<span style="color:#ffd700;font-size:0.65rem">🟡 Em aberto</span>`
+                            : `<span style="color:#ff4655;font-size:0.65rem">🔴 Em risco</span>`;
+                    }
 
                     return `<tr class="${tm.isManual?'manual-team':''} ${tm.qualified?'qualified':''}">
                         <td style="min-width:90px">
@@ -1324,10 +1366,14 @@ class Simulator {
                         <td style="font-size:0.68rem;color:#888">
                             ${mustWin.length > 0
                                 ? `<span style="color:#ff4655">⚠ ${oppNames(mustWin)}</span>`
-                                : `<span style="color:#42f590">✓ Seguro</span>`}
+                                : gamesLeft > 0
+                                ? `<span style="color:#42f590">✓ Seguro</span>`
+                                : '—'}
                         </td>
                         <td style="font-size:0.68rem;color:#555">
-                            ${canLose.length > 0 ? `Pode perder: ${oppNames(canLose)}` : gamesLeft === 0 ? '—' : 'Nenhum'}
+                            ${gamesLeft === 0 ? '—'
+                              : canLose.length > 0 ? `Pode perder: ${oppNames(canLose)}`
+                              : 'Nenhuma margem'}
                         </td>
                     </tr>`;
                 }).join('');
