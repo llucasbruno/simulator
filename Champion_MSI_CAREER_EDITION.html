@@ -951,49 +951,73 @@ class Simulator {
     }
 
     executeKnockoutPhase() {
-        const unplayed = this.knockoutMatches.filter(m => m.phase === this.currentPhase && !m.played);
-        if (unplayed.length === 0) { this.advancePhase(); return; }
+        // Filtra só partidas com AMBOS os times definidos
+        const unplayed = this.knockoutMatches.filter(m =>
+            m.phase === this.currentPhase && !m.played && m.t1 && m.t2
+        );
+        if (unplayed.length === 0) {
+            // Pode ser que ainda haja slots sem times (aguardando repescagem)
+            const pending = this.knockoutMatches.filter(m =>
+                m.phase === this.currentPhase && !m.played
+            );
+            if (pending.length === 0) this.advancePhase();
+            // Se ainda tem slots vazios, aguarda — não avança
+            return;
+        }
         const bestOf = this.currentPhase === 'FINAL' ? 5 : 3;
-        const manual = unplayed.find(m => m.t1 && m.t2 && (m.t1.isManual || m.t2.isManual));
+        const manual = unplayed.find(m => m.t1.isManual || m.t2.isManual);
         if (manual) {
             const idx = unplayed.indexOf(manual);
-            for (let i=0; i<idx; i++) this.simulateSeries(unplayed[i], bestOf);
-            this.save(); // salva outros resultados ANTES de abrir modal TL
+            for (let i = 0; i < idx; i++) {
+                if (unplayed[i].t1 && unplayed[i].t2) this.simulateSeries(unplayed[i], bestOf);
+            }
+            this.save();
             this.manualMatchPending = manual;
             this.openModal(manual, bestOf);
         } else {
-            unplayed.forEach(m => this.simulateSeries(m, bestOf));
+            unplayed.forEach(m => { if (m.t1 && m.t2) this.simulateSeries(m, bestOf); });
             this.save(); this.render(); this.updateButtonState();
         }
     }
 
     // ── FIX: advancePhase filters by current phase only ─────────────────────
     advancePhase() {
-        // Se estamos saindo da REPESCAGEM: preenche os slots t2 do KO principal
         if (this.currentPhase === 'REPECHAGE') {
             const repMatches = this.knockoutMatches.filter(m => m.phase === 'REPECHAGE');
             const koMatches  = this.knockoutMatches.filter(m => m.phase !== 'REPECHAGE');
 
+            // Preenche os t2 dos slots do KO com os vencedores da repescagem
+            // A ordem: repMatch[0] → koMatch com _repSlot === 0, etc.
             repMatches.forEach((rep, i) => {
-                if (rep.winner) {
-                    rep.winner.qualified = true;
-                    // Encontra o match KO que este slot de repesca alimenta
-                    const koMatch = this.knockoutMatches.find(m => m.phase !== 'REPECHAGE' && m._repSlot === i);
-                    if (koMatch) koMatch.t2 = rep.winner;
+                if (!rep.winner) return;
+                rep.winner.qualified = true;
+                // Encontra o match KO que espera o vencedor deste slot
+                const koMatch = koMatches.find(m => m._repSlot === i);
+                if (koMatch) {
+                    koMatch.t2 = rep.winner;
+                } else {
+                    // Fallback: preenche o primeiro t2 vazio em ordem
+                    const empty = koMatches.find(m => !m.t2 && !m.played);
+                    if (empty) empty.t2 = rep.winner;
                 }
             });
 
-            // Avança para a primeira fase KO
-            const firstKO = this.knockoutMatches.find(m => m.phase !== 'REPECHAGE');
+            // Avança para a primeira fase KO real
+            const nextPhases = ['RO32','RO16','QUARTERS','SEMIS','FINAL'];
+            const firstKO = koMatches[0];
             this.currentPhase = firstKO ? firstKO.phase : 'QUARTERS';
             this.save(); this.render(); this.updateButtonState();
             return;
         }
 
+        // Propaga vencedores para o próximo round
         this.knockoutMatches.forEach((m, idx) => {
             if (m.phase === this.currentPhase && m.played && m.winner && m.nextMatchIdx !== null) {
                 const nextM = this.knockoutMatches[m.nextMatchIdx];
-                if (nextM) { if (idx % 2 === 0) nextM.t1 = m.winner; else nextM.t2 = m.winner; }
+                if (nextM) {
+                    if (!nextM.t1) nextM.t1 = m.winner;
+                    else if (!nextM.t2) nextM.t2 = m.winner;
+                }
             }
         });
         const phases = ['REPECHAGE','RO32','RO16','QUARTERS','SEMIS','FINAL'];
