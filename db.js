@@ -13,8 +13,8 @@
 import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
 
 // ── ⚠️ SUBSTITUA PELOS SEUS DADOS DO SUPABASE ────────────────────────────────
-const SUPABASE_URL = 'https://SEU_PROJETO.supabase.co';
-const SUPABASE_KEY = 'SUA_ANON_KEY'; // chave "anon public" do seu projeto
+const SUPABASE_URL = 'https://uyxvcixgizxdxhtptwya.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_uzda998tRcpbzhdGU1WPLQ_6i0MXLWt'; // chave "anon public" do seu projeto
 // ─────────────────────────────────────────────────────────────────────────────
 
 const TABLE    = 'simulator_data';
