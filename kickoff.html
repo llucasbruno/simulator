@@ -235,13 +235,8 @@
 </div>
 
 <script>
-// ─── Shared keys (must match msi.html and career edition) ────────────────────
-
-
 const REGION_COLORS = { AMER: 'var(--amer-color)', EMEA: 'var(--emea-color)', PAC: 'var(--pac-color)', CN: 'var(--cn-color)' };
 const REGION_LABELS = { AMER: 'Américas', EMEA: 'Europa / Oriente Médio', PAC: 'Pacífico', CN: 'China' };
-
-// ─── All teams, split by region ──────────────────────────────────────────────
 
 function getKFactor(phase) {
     return { GROUPS:29, QUARTERS:49, SEMIS:67, FINAL:97 }[phase] || 40;
@@ -253,7 +248,6 @@ class KickoffSimulator {
         this.tlStats     = this._load(TL_STATS_KEY) || { eloHistory:[], matches:[], headToHead:{} };
         this.qualifiers  = this._load(QUALIFIER_KEY) || { AMER:[], EMEA:[], PAC:[], CN:[] };
 
-        // Active tournament state
         this.region       = null;
         this.teams        = [];
         this.groups       = {};
@@ -274,7 +268,6 @@ class KickoffSimulator {
             this.currentPhase = saved.currentPhase || 'IDLE';
             this.currentGroupRound = saved.currentGroupRound || 1;
             this.historyLogs = saved.historyLogs || [];
-            // Sync ELO
             this.teams.forEach(t => { const l=this.legacyStats[t.name]; if(l) t.rating=l.elo; });
             this.relinkObjects();
         }
@@ -283,7 +276,7 @@ class KickoffSimulator {
         if (this.region && this.currentPhase !== 'IDLE') {
             document.getElementById('activeSection').style.display = 'flex';
             this.render(); this.updateButtons();
-            this._checkPendingTLMatch(); // reabre modal se havia partida TL pendente
+            this._checkPendingTLMatch();
         }
         this.renderLog();
     }
@@ -316,7 +309,6 @@ class KickoffSimulator {
         this.knockoutMatches.forEach(m => { if(m.t1) m.t1=find(m.t1.name||m.t1.id); if(m.t2) m.t2=find(m.t2.name||m.t2.id); if(m.winner) m.winner=find(m.winner.name||m.winner.id); });
     }
 
-    // ── Region selector ──────────────────────────────────────────────────────
     renderRegionSelector() {
         const sel = document.getElementById('regionSelector');
         const banner = document.getElementById('statusBanner');
@@ -335,7 +327,6 @@ class KickoffSimulator {
             </div>`;
         }).join('');
 
-        // Status banner
         const done = regions.filter(r => this.qualifiers[r]?.length===2).length;
         const allDone = done === 4;
         banner.innerHTML = `
@@ -349,12 +340,10 @@ class KickoffSimulator {
     }
 
     selectRegion(region) {
-        // If there's an active tournament in another region, warn
         if (this.region && this.region !== region && this.currentPhase !== 'IDLE' && this.currentPhase !== 'FINISHED') {
             if (!confirm(`Você tem um Kickoff de ${this.region} em andamento.\nTrocar irá perder o progresso atual. Continuar?`)) return;
         }
         if (this.region === region && this.currentPhase !== 'IDLE' && this.currentPhase !== 'FINISHED') {
-            // Resume
             document.getElementById('activeSection').style.display = 'flex';
             this.render(); this.updateButtons();
             return;
@@ -368,7 +357,6 @@ class KickoffSimulator {
         this.currentGroupRound = 1;
         this.historyLogs = [];
 
-        // Pool: all teams from this region, with ELO synced
         const pool = REAL_TEAMS_DATA.filter(t => t.region === region).map(data => {
             const leg = this.legacyStats[data.name] || {};
             return { ...data, id: data.name, rating: leg.elo !== undefined ? leg.elo : data.rating, logo: leg.logo || data.logo || DEFAULT_LOGO, isManual: data.name === 'Team Liquid', wins:0, losses:0, points:0, status:'neutral', group:'' };
@@ -376,7 +364,6 @@ class KickoffSimulator {
 
         this.teams = pool;
 
-        // Groups: 3 groups of 4 for 12 teams, or 2 groups of 4 for 8 teams
         const numGroups = Math.floor(this.teams.length / 4);
         this.groups = this.assignGroups(numGroups);
         this.schedule = this.generateSchedule();
@@ -416,7 +403,6 @@ class KickoffSimulator {
         return sched;
     }
 
-    // ── Simulation ───────────────────────────────────────────────────────────
     getEffRating(t) {
         let r = t.rating;
         if (t.status==='fire') r+=40; if (t.status==='tilt') r-=80;
@@ -446,8 +432,6 @@ class KickoffSimulator {
 
     resolveStats(winner, loser, score, maps, match) {
         const K = getKFactor(this.currentPhase);
-
-        // ELO real: ganho proporcional à surpresa do resultado
         const expected = 1 / (1 + Math.pow(10, (loser.rating - winner.rating) / 400));
         const chance   = (expected * 100).toFixed(1);
         const gain     = Math.round(K * (1 - expected));
@@ -463,7 +447,6 @@ class KickoffSimulator {
         const mapsStr = maps.map(m=>`[${m.sW}-${m.sL}]`).join(' ');
         this.historyLogs.unshift({ text:`<img src="${winner.logo||DEFAULT_LOGO}" style="width:12px;vertical-align:middle"> ${winner.name} <span style="color:#ff4655">${score}</span> ${loser.name}`, details:`${mapsStr} | K:${K} | ${chance}% → +${gain}/-${loss}`, flavor, isManual: winner.isManual||loser.isManual });
 
-        // TL career tracking
         if (winner.isManual || loser.isManual) {
             const tl  = winner.isManual ? winner : loser;
             const opp = winner.isManual ? loser : winner;
@@ -491,7 +474,7 @@ class KickoffSimulator {
         const manual = pending.find(m => m.t1.isManual||m.t2.isManual);
         if (manual) {
             pending.forEach(m => { if(m!==manual) this.simSeries(m,3); });
-            this.save(); // salva outros resultados ANTES de abrir modal TL
+            this.save();
             this.manualMatchPending = manual;
             this.openModal(manual, 3);
         } else {
@@ -510,7 +493,7 @@ class KickoffSimulator {
         if (manual) {
             const idx=unplayed.indexOf(manual);
             for(let i=0;i<idx;i++) this.simSeries(unplayed[i],bestOf);
-            this.save(); // salva outros resultados ANTES de abrir modal TL
+            this.save();
             this.manualMatchPending=manual;
             this.openModal(manual,bestOf);
         } else {
@@ -520,15 +503,12 @@ class KickoffSimulator {
     }
 
     advanceToKnockout() {
-        // Take top 2 from each group → build single elim bracket
         let seeds = [];
         Object.keys(this.groups).forEach(g => {
             const t = [...this.groups[g]].sort((a,b)=>b.points-a.points||b.wins-a.wins||b.rating-a.rating);
             seeds.push({ seed:1, group:g, team:t[0] });
             seeds.push({ seed:2, group:g, team:t[1] });
         });
-        // Seed 1 vs seed 2 of different groups: 1A vs 2B, 1B vs 2A, etc. (for 2 groups)
-        // For 3 groups (12 teams): 6 advance, quarterfinals
         const advancers = seeds.map(s=>s.team);
         advancers.forEach(t => t.qualified = true);
 
@@ -536,7 +516,6 @@ class KickoffSimulator {
         this.knockoutMatches = [];
 
         if (numAdv === 4) {
-            // 2 groups → semis → final
             this.knockoutMatches = [
                 { phase:'SEMIS', t1:seeds[0].team, t2:seeds[3].team, nextMatchIdx:2 },
                 { phase:'SEMIS', t1:seeds[2].team, t2:seeds[1].team, nextMatchIdx:2 },
@@ -544,33 +523,21 @@ class KickoffSimulator {
             ].map(m=>({...m,played:false,winner:null,score:null}));
             this.currentPhase='SEMIS';
         } else {
-            // 3 groups → QF (6 teams, 1 gets bye? No: use top 2 of each = 6 → QF with bye for group winners)
-            // Simpler: group winners get bye to semis, runners-up play QFs
             const winners = seeds.filter(s=>s.seed===1).map(s=>s.team);
             const runners = seeds.filter(s=>s.seed===2).map(s=>s.team);
-            this.knockoutMatches = [
-                // QF: runner A vs runner B, winner faces winner C
-                { phase:'QUARTERS', t1:runners[0], t2:runners[1], nextMatchIdx:3 },
-                { phase:'QUARTERS', t1:runners[1], t2:runners[2], nextMatchIdx:4 }, // just use 2 QFs
-                // Actually simplify: top 3 group winners get byes, 3 runners play mini bracket
-                // Use: QF1: 2A vs 2C, QF2: winner vs 2B, SF: winners + group winners
-            ];
-            // Cleaner approach for 3 groups (6 advance): 2 QFs → 2 SFs → Final
             this.knockoutMatches = [
                 { phase:'QUARTERS', t1:runners[0],  t2:runners[2],  nextMatchIdx:4 },
                 { phase:'QUARTERS', t1:runners[1],  t2:winners[2],  nextMatchIdx:5 },
                 { phase:'SEMIS',    t1:winners[0],  t2:null,        nextMatchIdx:6 },
-                { phase:'SEMIS',    t1:winners[1],  t2:null,        nextMatchIdx:6 },  // wait no
-                // Let's do it properly: 4 semis slots: winners[0], winners[1], and 2 QF winners
+                { phase:'SEMIS',    t1:winners[1],  t2:null,        nextMatchIdx:6 },
                 { phase:'SEMIS',    t1:null, t2:null, nextMatchIdx:6 },
                 { phase:'SEMIS',    t1:null, t2:null, nextMatchIdx:6 },
                 { phase:'FINAL',    t1:null, t2:null, nextMatchIdx:null },
             ].map(m=>({...m,played:false,winner:null,score:null}));
-            // Fix semis seeding
             this.knockoutMatches[2].t1 = winners[0];
             this.knockoutMatches[3].t1 = winners[1];
-            this.knockoutMatches[0].nextMatchIdx = 3; // QF0 winner → semi3 t2
-            this.knockoutMatches[1].nextMatchIdx = 2; // QF1 winner → semi2 t2
+            this.knockoutMatches[0].nextMatchIdx = 3;
+            this.knockoutMatches[1].nextMatchIdx = 2;
             this.currentPhase='QUARTERS';
         }
         this.save(); this.render(); this.updateButtons();
@@ -590,7 +557,6 @@ class KickoffSimulator {
         this.save(); this.render(); this.updateButtons();
     }
 
-    // ── Qualify ──────────────────────────────────────────────────────────────
     saveQualifiers() {
         const finalMatch = this.knockoutMatches[this.knockoutMatches.length-1];
         const champion  = finalMatch.winner;
@@ -602,7 +568,6 @@ class KickoffSimulator {
         this.qualifiers[this.region] = [q1, q2];
         this._save(QUALIFIER_KEY, this.qualifiers);
 
-        // Salva troféu se TL for campeão
         if (champion.isManual) {
             const trophies = this._load('tl_trophies_v1') || [];
             trophies.push({ type:'KICKOFF', icon:'🎯', title:`Kickoff ${this.region}`, date:new Date().toLocaleDateString('pt-BR'), runnerUp: runnerUp?.name||'—' });
@@ -646,7 +611,6 @@ class KickoffSimulator {
         document.getElementById('btnQualify').style.display = 'block';
     }
 
-    // ── Render ───────────────────────────────────────────────────────────────
     getPhaseName() {
         const map = { IDLE:'AGUARDANDO', GROUPS:`FASE DE GRUPOS (R${this.currentGroupRound})`, QUARTERS:'QUARTAS DE FINAL', SEMIS:'SEMIFINAL', FINAL:'GRANDE FINAL', FINISHED:'KICKOFF ENCERRADO' };
         return map[this.currentPhase] || this.currentPhase;
@@ -660,7 +624,6 @@ class KickoffSimulator {
         if(elo>=200)  return '<span style="color:var(--rank-c)">C</span>';
         return '<span style="color:var(--rank-d)">D</span>';
     }
-
 
     _renderGroupsWithChances(groups, schedule, container) {
         container.className = 'main-container';
@@ -689,12 +652,15 @@ class KickoffSimulator {
                     });
                     if ([pts,...others].sort((a,b)=>b-a).indexOf(pts) < 2) simWins++;
                 }
-               const qual   = Math.round((simWins/SIMS)*100);
-                const color  = qual >= 70 ? '#42f590' : qual >= 40 ? '#ffd700' : '#ff4655';
-                const bar    = `<div style="background:#111;border-radius:3px;height:4px;overflow:hidden;width:50px;display:inline-block;vertical-align:middle;margin-left:5px"><div style="width:${qual}%;height:100%;background:${color};border-radius:3px"></div></div>`; 
+                const qual = Math.round((simWins/SIMS)*100);
+
+                // ── FIX: variáveis únicas, sem duplicata ──────────────────
+                const qualColor = qual >= 70 ? '#42f590' : qual >= 40 ? '#ffd700' : '#ff4655';
+                const qualBar   = `<div style="background:#111;border-radius:3px;height:4px;overflow:hidden;width:50px;display:inline-block;vertical-align:middle;margin-left:5px"><div style="width:${qual}%;height:100%;background:${qualColor};border-radius:3px"></div></div>`;
+                // ─────────────────────────────────────────────────────────
+
                 const gamesLeft = myPending.length;
 
-                // Pode perder: simula cada jogo individualmente
                 const canLose = myPending.filter(lostMatch => {
                     let ptsIfLose = tm.points;
                     myPending.forEach(m => { if (m !== lostMatch) ptsIfLose += 3; });
@@ -710,15 +676,12 @@ class KickoffSimulator {
                 });
 
                 const mustWin = myPending.filter(m => !canLose.includes(m));
-                const qualColor = qual >= 70 ? '#42f590' : qual >= 40 ? '#ffd700' : '#ff4655';
-                const qualBar   = `<div style="background:#111;border-radius:3px;height:4px;overflow:hidden;width:50px;display:inline-block;vertical-align:middle;margin-left:5px"><div style="width:${qual}%;height:100%;background:${qualColor};border-radius:3px"></div></div>`;
 
                 const oppName = (m) => {
                     const opp = m.t1 === tm ? m.t2 : m.t1;
                     return `<img src="${opp.logo||DEFAULT_LOGO}" style="width:11px;height:11px;object-fit:contain;vertical-align:middle"> ${opp.name}`;
                 };
 
-                // Destino correto baseado em pontos e jogos restantes
                 const maxPts = tm.points + gamesLeft * 3;
                 const curRank = [...allTeams].sort((a,b)=>b.points-a.points).indexOf(tm);
                 let fateTag;
@@ -829,7 +792,6 @@ class KickoffSimulator {
             btnPlay.disabled = true;
             btnPlay.innerText = '⏳ AGUARDANDO RESULTADO DA TL';
             btnQualify.style.display = 'none';
-            // Botão para reabrir modal se foi fechado
             document.getElementById('btnReopenModal').style.display = 'inline-block';
         } else {
             btnPlay.disabled = false;
@@ -841,7 +803,6 @@ class KickoffSimulator {
         btnMasters.style.display = allDone ? 'block' : 'none';
     }
 
-    // ── Manual Match Modal ───────────────────────────────────────────────────
     openModal(match, bestOf) {
         const opp = match.t1.isManual ? match.t2 : match.t1;
         const man = match.t1.isManual ? match.t1 : match.t2;
@@ -898,7 +859,6 @@ class KickoffSimulator {
         }
         this.save(); this.render(); this.updateButtons();
     }
-
 
     _updateEloPreview() {
         const match = this.manualMatchPending;
