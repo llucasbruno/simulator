@@ -146,6 +146,7 @@
     <button class="career-btn" onclick="ms.openCareerModal()">⚡ MINHA CARREIRA</button>
     <button class="kickoff-btn" onclick="window.location.href='kickoff.html'">🎯 VOLTAR AO KICKOFF</button>
     <button class="secondary" onclick="ms.openRankingModal()">🌍 RANKING MUNDIAL</button>
+    <button onclick="ms.newSeason()" style="background:linear-gradient(135deg,#001a1a,#002a2a);border-color:var(--gold);color:var(--gold);font-weight:900;">🔄 NOVA SEASON</button>
     <button class="secondary" style="border-color:#500; color:#800;" onclick="ms.resetAll()">WIPE DATA</button>
 </div>
 
@@ -880,6 +881,25 @@ class MastersSimulator {
             </div>`;
         }).join('')+'</div>';
         document.getElementById('rankingModal').style.display='flex';
+    }
+
+    newSeason(){
+        if(!confirm('Iniciar nova season do Masters?\n\n✓ ELO global preservado\n✓ Histórico de carreira preservado\n✗ Qualificados do Kickoff resetados\n✗ Progresso atual do Masters apagado')) return;
+        saveSeasonSnapshot('MASTERS');
+        DB.removeAll([MASTERS_KEY, QUALIFIER_KEY]);
+        this.teams=[]; this.groups={}; this.schedule=[];
+        this.knockoutMatches=[]; this.historyLogs=[];
+        this.currentPhase='IDLE'; this.currentGroupRound=1;
+        this.manualMatchPending=null;
+        this.qualifiers={ AMER:[], EMEA:[], PAC:[], CN:[] };
+        document.getElementById('importPanel').style.display='block';
+        document.getElementById('phaseDisplay').style.display='none';
+        document.getElementById('btnPlay').style.display='none';
+        document.getElementById('championDisplay').style.display='none';
+        document.getElementById('mainDisplay').innerHTML='';
+        this.renderImportPanel();
+        this.updateButtons();
+        this.renderLog();
     }
 
     resetAll(){
