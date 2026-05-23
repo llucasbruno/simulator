@@ -593,7 +593,7 @@ class MastersSimulator {
                     if ([pts,...others].sort((a,b)=>b-a).indexOf(pts) < 2) simWins++;
                 }
                 const qual   = Math.round((simWins/SIMS)*100);
-                const color  = qual >= 70 ? '#42f590' : qual >= 40 ? '#ffd700' : '#ff4655';
+                const qualColor = qual >= 70 ? '#42f590' : qual >= 40 ? '#ffd700' : '#ff4655';
                 const bar    = `<div style="background:#111;border-radius:3px;height:4px;overflow:hidden;width:50px;display:inline-block;vertical-align:middle;margin-left:5px"><div style="width:${qual}%;height:100%;background:${qualColor};border-radius:3px"></div></div>`;
 
                 const gamesLeft = myPending.length;
