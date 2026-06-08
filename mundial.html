@@ -390,7 +390,7 @@ var MUN_ARCHIVE = 'mundial_archive_v1';
 var GLOBAL_ELO  = 'msi_elo_v14_prime';
 var TL_STATS    = 'msi_tl_career_v1';
 var TL_TROPHIES = 'tl_trophies_v1';
-
+// DEFAULT_LOGO já vem do shared.js
 
 function getK(phase) {
     var map = { GROUPS:31, REPECHAGE:39, RO32:39, RO16:49, QUARTERS:63, SEMIS:79, FINAL:107 };
@@ -473,6 +473,12 @@ Mundial.prototype._loadState = function() {
                     if (ref) t.region = ref.region;
                 }
             });
+            // Garante visibilidade correta ao restaurar
+            document.getElementById('draftSection').style.display = 'none';
+            document.getElementById('mainContent').style.display = 'block';
+            document.getElementById('btnConfirmDraft').style.display = 'none';
+            document.getElementById('btnPlay').style.display = 'inline-flex';
+
             this._relink();
             this._render();
             this._updateBtns();
