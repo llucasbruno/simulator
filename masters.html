@@ -13,6 +13,7 @@
             --rank-c: #ff9d00; --rank-d: #ff4655;
             --amer-color: #ff5e00; --emea-color: #00ffcc;
             --pac-color: #ff00a0; --cn-color: #ff0000;
+            --repechage: #ffd700;
         }
         * { box-sizing: border-box; }
         body { font-family: 'Segoe UI', sans-serif; background: var(--val-dark); color: var(--val-white); margin:0; padding:20px; display:flex; flex-direction:column; align-items:center; min-height:100vh; }
@@ -50,6 +51,7 @@
         /* Phase */
         .phase-indicator { background:#111; padding:8px 22px; border-radius:4px; margin-bottom:10px; border:1px solid #1e3050; color:var(--liquid-blue); font-weight:bold; text-transform:uppercase; letter-spacing:2px; box-shadow:0 0 10px rgba(0,174,255,0.15); }
         .progress-bar { background:linear-gradient(90deg,var(--liquid-blue),#0050aa); height:4px; width:0%; transition:width 0.5s; margin-bottom:12px; border-radius:2px; }
+        .groups-legend { font-size:0.72rem; color:#6a8fa8; background:#111; border:1px solid #1e3050; border-radius:4px; padding:6px 16px; margin-bottom:12px; text-align:center; }
 
         /* Groups */
         .main-container { display:flex; gap:15px; width:100%; max-width:1100px; flex-wrap:wrap; justify-content:center; margin-bottom:20px; }
@@ -71,6 +73,7 @@
         .match-card { background:#111; border:1px solid #1e3050; padding:8px; width:100%; display:flex; flex-direction:column; gap:3px; border-left:2px solid #1e3050; border-radius:4px; }
         .match-card.active { border-left:4px solid var(--liquid-blue); box-shadow:0 0 8px rgba(0,174,255,0.15); }
         .match-card.tl-match { border-color:var(--liquid-blue) !important; border-left-width:3px !important; box-shadow:0 0 12px rgba(0,174,255,0.25) !important; }
+        .match-card.repechage-match { border-color:var(--repechage) !important; }
         .match-team { display:flex; justify-content:space-between; align-items:center; font-size:0.8rem; background:rgba(0,0,0,0.4); padding:3px 6px; border-radius:2px; }
         .match-team.winner { color:var(--liquid-blue); font-weight:bold; background:rgba(0,174,255,0.08); border-left:2px solid var(--liquid-blue); }
         .match-team.enemy-winner { color:var(--val-red); font-weight:bold; background:rgba(255,70,85,0.08); border-left:2px solid var(--val-red); }
@@ -113,6 +116,29 @@
         .log-entry { border-bottom:1px solid #222; padding:5px 0; }
         .flavor-text { color:var(--liquid-blue); font-style:italic; font-size:0.68rem; opacity:0.85; }
         .tl-log { background:rgba(0,174,255,0.05); border-left:3px solid var(--liquid-blue); padding-left:6px; }
+
+        /* Confirm / Alert modals */
+        .prompt-modal .modal-content { max-width:420px; }
+        .prompt-modal p { white-space:pre-line; font-size:0.92rem; line-height:1.5; text-align:left; }
+        .prompt-actions { display:flex; gap:10px; justify-content:center; margin-top:18px; }
+
+        /* Responsive */
+        @media (max-width: 760px) {
+            body { padding:12px; }
+            h1 { font-size:1.5rem; letter-spacing:1px; }
+            .subtitle { font-size:0.7rem; }
+            .qual-grid { grid-template-columns:repeat(2,1fr); }
+            .main-container { flex-direction:column; align-items:stretch; }
+            .group-card { width:100%; max-width:100%; }
+            .bracket-container { flex-direction:column; align-items:stretch; overflow-x:visible; padding:12px; }
+            .bracket-column { min-width:0; width:100%; }
+            .stat-cards { grid-template-columns:repeat(2,1fr) !important; }
+            .controls { gap:6px; }
+            .controls button { flex:1 1 auto; font-size:0.7rem; padding:8px 10px; }
+            table { font-size:0.72rem; }
+            .modal-content { padding:16px; }
+            .prematch-row { gap:10px; }
+        }
     </style>
     <script type="module" src="db.js"></script>
     <script src="shared.js"></script>
@@ -135,7 +161,7 @@
 <div id="importPanel" class="import-panel">
     <h3>🎯 Classificados dos Kickoffs Regionais</h3>
     <div class="qual-grid" id="qualGrid"></div>
-    <div class="qual-warning" id="qualWarning">⚠ Nem todos os Kickoffs foram concluídos. Você pode iniciar assim mesmo, mas os times das regiões pendentes não serão carregados automaticamente.</div>
+    <div class="qual-warning" id="qualWarning">⚠ Nem todos os Kickoffs foram concluídos. Complete os 4 Kickoffs regionais (8 times, 2 por região) para poder iniciar o Masters.</div>
     <div class="import-actions" id="importActions"></div>
 </div>
 
@@ -152,6 +178,7 @@
 
 <div id="phaseDisplay" class="phase-indicator" style="display:none;">—</div>
 <div style="width:100%; max-width:800px;"><div id="progressBar" class="progress-bar"></div></div>
+<div id="groupsLegend" class="groups-legend" style="display:none;">🏆 1º lugar → vaga direta na Semifinal &nbsp;·&nbsp; 🔁 2º e 3º lugar → Repescagem &nbsp;·&nbsp; ❌ 4º lugar → Eliminado</div>
 
 <div id="mainDisplay" class="main-container"></div>
 <div id="championDisplay" style="display:none; width:100%; max-width:600px;"></div>
@@ -208,6 +235,27 @@
     </div>
 </div>
 
+<!-- Confirm Modal (substitui window.confirm) -->
+<div id="confirmModal" class="modal-overlay prompt-modal">
+    <div class="modal-content">
+        <p id="confirmMsg"></p>
+        <div class="prompt-actions">
+            <button id="confirmYesBtn">Confirmar</button>
+            <button class="secondary" onclick="UI.closeConfirm()">Cancelar</button>
+        </div>
+    </div>
+</div>
+
+<!-- Alert Modal (substitui window.alert) -->
+<div id="alertModal" class="modal-overlay prompt-modal">
+    <div class="modal-content">
+        <p id="alertMsg"></p>
+        <div class="prompt-actions">
+            <button onclick="UI.closeAlert()">OK</button>
+        </div>
+    </div>
+</div>
+
 <style>
     .career-tab-btn { padding:12px 22px; cursor:pointer; color:#6a8fa8; font-size:0.78rem; font-weight:bold; text-transform:uppercase; letter-spacing:1px; border-bottom:3px solid transparent; transition:all 0.2s; }
     .career-tab-btn:hover { color:var(--liquid-blue); }
@@ -233,9 +281,35 @@
 
 <script>
 
+// ── Escaping helper (evita injeção de HTML em nomes de time) ─────────────────
+function esc(s) {
+    return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+// ── Confirm/Alert estilizados (substituem window.confirm / window.alert) ────
+const UI = {
+    showAlert(msg) {
+        document.getElementById('alertMsg').innerText = msg;
+        document.getElementById('alertModal').style.display = 'flex';
+    },
+    closeAlert() {
+        document.getElementById('alertModal').style.display = 'none';
+    },
+    showConfirm(msg, onYes) {
+        document.getElementById('confirmMsg').innerText = msg;
+        const oldBtn = document.getElementById('confirmYesBtn');
+        const newBtn = oldBtn.cloneNode(true); // limpa listeners antigos
+        oldBtn.parentNode.replaceChild(newBtn, oldBtn);
+        newBtn.addEventListener('click', () => { UI.closeConfirm(); onYes(); });
+        document.getElementById('confirmModal').style.display = 'flex';
+    },
+    closeConfirm() {
+        document.getElementById('confirmModal').style.display = 'none';
+    }
+};
 
 function getKFactor(phase) {
-    return { GROUPS:49, SEMIS:79, FINAL:117 }[phase] || 60;
+    return { GROUPS:49, REPECHAGE:65, SEMIS:79, FINAL:117 }[phase] || 60;
 }
 
 class MastersSimulator {
@@ -300,6 +374,15 @@ class MastersSimulator {
         this.knockoutMatches.forEach(m => { if(m.t1)m.t1=find(m.t1.name||m.t1.id); if(m.t2)m.t2=find(m.t2.name||m.t2.id); if(m.winner)m.winner=find(m.winner.name||m.winner.id); });
     }
 
+    // ── ELO (fórmula única, usada em toda a simulação e no preview) ─────────
+    calcEloChange(ratingSelf, ratingOpp, K) {
+        const expected = 1 / (1 + Math.pow(10, (ratingOpp - ratingSelf) / 400));
+        const chance = (expected * 100).toFixed(1);
+        const gain = Math.round(K * (1 - expected));
+        const loss = Math.round(K * expected);
+        return { gain, loss, chance, expected };
+    }
+
     // ── Import Panel ─────────────────────────────────────────────────────────
     renderImportPanel() {
         const regions = ['AMER','EMEA','PAC','CN'];
@@ -316,7 +399,7 @@ class MastersSimulator {
                     <div class="qual-team-row">
                         <span class="qualifier-dot"></span>
                         <img src="${t.logo||DEFAULT_LOGO}">
-                        <span>${t.name}</span>
+                        <span>${esc(t.name)}</span>
                         <span class="qelo">${t.rating}</span>
                     </div>`).join('') : `<div class="qual-missing">Kickoff pendente</div>`}
             </div>`;
@@ -326,9 +409,11 @@ class MastersSimulator {
         const allReady = totalLoaded === 8;
         warning.style.display = allReady ? 'none' : 'block';
 
+        // O Masters exige exatamente 8 times (2 por região x 4 regiões) para montar
+        // 2 grupos de 4 corretamente — por isso o botão só libera com os 8 carregados.
         actions.innerHTML = `
-            <button onclick="ms.startTournament()" ${totalLoaded===0?'disabled':''}>
-                ⚡ INICIAR MASTERS ${totalLoaded > 0 ? `(${totalLoaded} times carregados)` : ''}
+            <button onclick="ms.startTournament()" ${totalLoaded!==8?'disabled':''}>
+                ⚡ INICIAR MASTERS (${totalLoaded}/8 times)
             </button>
             ${!allReady ? `<button class="kickoff-btn" onclick="window.location.href='kickoff.html'" style="padding:10px 16px; font-size:0.8rem;">🎯 Completar Kickoffs</button>` : ''}
             ${this.currentPhase !== 'IDLE' ? `<button class="secondary" onclick="ms.resumeTournament()">↩ Retomar Torneio</button>` : ''}
@@ -343,8 +428,10 @@ class MastersSimulator {
     }
 
     startTournament() {
-        if (!confirm('Iniciar o Masters com os times carregados?\nO ELO de cada time reflete o resultado do Kickoff.')) return;
+        UI.showConfirm('Iniciar o Masters com os 8 times classificados?\nO ELO de cada time reflete o resultado do Kickoff.', () => this._doStartTournament());
+    }
 
+    _doStartTournament() {
         // Build the 8 teams from qualifiers
         const regions = ['AMER','EMEA','PAC','CN'];
         let allQuals = [];
@@ -355,16 +442,14 @@ class MastersSimulator {
             });
         });
 
-        if (allQuals.length < 4) { alert('Precisa de pelo menos 4 times. Complete mais Kickoffs.'); return; }
+        if (allQuals.length < 8) { UI.showAlert('É necessário ter os 8 times classificados (2 por região) para iniciar.'); return; }
 
         this.teams = allQuals;
         this.currentPhase = 'GROUPS';
         this.currentGroupRound = 1;
         this.historyLogs = [];
 
-        // 2 groups of 4 (if 8 teams) or 1 group (if fewer)
-        const numGroups = this.teams.length >= 8 ? 2 : 1;
-        this.groups = this.assignGroups(numGroups);
+        this.groups = this.assignGroups(2);
         this.schedule = this.generateSchedule();
         this.knockoutMatches = [];
 
@@ -436,13 +521,10 @@ class MastersSimulator {
     }
 
     resolveStats(winner, loser, score, maps, match) {
-        const K=getKFactor(this.currentPhase);
+        const K = getKFactor(this.currentPhase);
 
-        // ELO real: ganho proporcional à surpresa do resultado
-        const expected = 1 / (1 + Math.pow(10, (loser.rating - winner.rating) / 400));
-        const chance   = (expected * 100).toFixed(1);
-        const gain     = Math.round(K * (1 - expected));
-        const loss     = Math.round(K * expected);
+        // ELO real: ganho proporcional à surpresa do resultado (fórmula única — calcEloChange)
+        const { gain, loss, chance } = this.calcEloChange(winner.rating, loser.rating, K);
 
         winner.rating=Math.max(0,winner.rating+gain);
         loser.rating=Math.max(0,loser.rating-loss);
@@ -452,7 +534,7 @@ class MastersSimulator {
         const last=maps[maps.length-1];
         const flavor=last.sW-last.sL>8?'MASSACRE!':last.sW>13?'OVERTIME!':'Vitória Tática';
         const mapsStr=maps.map(m=>`[${m.sW}-${m.sL}]`).join(' ');
-        this.historyLogs.unshift({text:`<img src="${winner.logo||DEFAULT_LOGO}" style="width:12px;vertical-align:middle"> ${winner.name} <span style="color:#ff4655">${score}</span> ${loser.name}`,details:`${mapsStr} | K:${K} | ${chance}% → +${gain}/-${loss}`,flavor,isManual:winner.isManual||loser.isManual});
+        this.historyLogs.unshift({text:`<img src="${winner.logo||DEFAULT_LOGO}" style="width:12px;vertical-align:middle"> ${esc(winner.name)} <span style="color:#ff4655">${score}</span> ${esc(loser.name)}`,details:`${mapsStr} | K:${K} | ${chance}% → +${gain}/-${loss}`,flavor,isManual:winner.isManual||loser.isManual});
 
         if(winner.isManual||loser.isManual){
             const tl=winner.isManual?winner:loser, opp=winner.isManual?loser:winner, won=winner.isManual;
@@ -473,8 +555,8 @@ class MastersSimulator {
         this.teams.forEach(t=>t.status='neutral');
         const pending=this.schedule.filter(m=>m.round===this.currentGroupRound&&!m.played);
         if(pending.length===0){
-            if(this.currentGroupRound<3){this.currentGroupRound++;this.save();this.updateButtons();return;}
-            else{this.advanceToKnockout();return;}
+            if(this.currentGroupRound<3){this.currentGroupRound++;this.save();this.render();this.updateButtons();return;}
+            else{this.advanceToRepechage();return;}
         }
         const manual=pending.find(m=>m.t1.isManual||m.t2.isManual);
         if(manual){pending.forEach(m=>{if(m!==manual)this.simSeries(m,3);});
@@ -494,21 +576,32 @@ class MastersSimulator {
         else{unplayed.forEach(m=>this.simSeries(m,bestOf));this.save();this.render();this.updateButtons();}
     }
 
-    advanceToKnockout() {
-        // Top 2 from each group → 4 semis
-        let advancers = [];
-        Object.keys(this.groups).forEach(g => {
+    // ── Fim dos grupos → Repescagem ──────────────────────────────────────────
+    // 1º de cada grupo: vaga direta na semifinal.
+    // 2º e 3º de cada grupo: se enfrentam na repescagem por uma chance a mais.
+    // 4º de cada grupo: eliminado.
+    advanceToRepechage() {
+        const groupKeys = Object.keys(this.groups);
+        let seeds = {};
+        groupKeys.forEach(g => {
             const t=[...this.groups[g]].sort((a,b)=>b.points-a.points||b.wins-a.wins||b.rating-a.rating);
-            t[0].qualified=t[1].qualified=true;
-            advancers.push({g, t1:t[0], t2:t[1]});
+            t[0].qualified=true; t[1].repechage=true; t[2].repechage=true; t[3].eliminated=true;
+            seeds[g] = { first:t[0], second:t[1], third:t[2], fourth:t[3] };
         });
-        // Cross bracket: 1A vs 2B, 1B vs 2A
+
+        const A = seeds['A'], B = seeds['B'] || seeds['A'];
+
         this.knockoutMatches = [
-            { phase:'SEMIS', t1:advancers[0].t1, t2:advancers[1]?.t2||advancers[0].t2, nextMatchIdx:2 },
-            { phase:'SEMIS', t1:advancers[1]?.t1||advancers[0].t2, t2:advancers[0].t2, nextMatchIdx:2 },
-            { phase:'FINAL', t1:null, t2:null, nextMatchIdx:null },
+            { phase:'REPECHAGE', t1:A.second, t2:B.third, nextMatchIdx:3 }, // idx0 → alimenta S2 (idx3)
+            { phase:'REPECHAGE', t1:B.second, t2:A.third, nextMatchIdx:2 }, // idx1 → alimenta S1 (idx2)
+            { phase:'SEMIS',     t1:A.first,  t2:null,    nextMatchIdx:4 }, // idx2
+            { phase:'SEMIS',     t1:B.first,  t2:null,    nextMatchIdx:4 }, // idx3
+            { phase:'FINAL',     t1:null,     t2:null,    nextMatchIdx:null }, // idx4
         ].map(m=>({...m,played:false,winner:null,score:null}));
-        this.currentPhase='SEMIS';
+
+        this.historyLogs.unshift({text:`🔁 Fase de Grupos encerrada — ${esc(A.first.name)} e ${esc(B.first.name)} avançam direto às Semifinais`,details:`2º e 3º colocados de cada grupo seguem para a Repescagem`,flavor:'Fim da Fase de Grupos'});
+
+        this.currentPhase='REPECHAGE';
         this.save(); this.render(); this.updateButtons();
     }
 
@@ -519,7 +612,11 @@ class MastersSimulator {
                 if(next){if(!next.t1)next.t1=m.winner;else next.t2=m.winner;}
             }
         });
-        if(this.currentPhase==='SEMIS') this.currentPhase='FINAL';
+        if(this.currentPhase==='REPECHAGE'){
+            this.currentPhase='SEMIS';
+            this.historyLogs.unshift({text:`⚔️ Repescagem encerrada — Semifinalistas definidos`,details:'',flavor:'Fim da Repescagem'});
+        }
+        else if(this.currentPhase==='SEMIS') this.currentPhase='FINAL';
         else if(this.currentPhase==='FINAL'){this.finishTournament();return;}
         this.save(); this.render(); this.updateButtons();
     }
@@ -541,8 +638,8 @@ class MastersSimulator {
             <div class="champion-display">
                 <h2>🏆 CAMPEÃO DO MASTERS</h2>
                 <img src="${champion.logo||DEFAULT_LOGO}" style="margin-bottom:10px;">
-                <div style="font-size:1.5rem; font-weight:900; color:var(--gold);">${champion.name}</div>
-                <div style="color:#666; font-size:0.8rem; margin:8px 0;">🥈 Vice: ${runnerUp?.name||'—'}</div>
+                <div style="font-size:1.5rem; font-weight:900; color:var(--gold);">${esc(champion.name)}</div>
+                <div style="color:#666; font-size:0.8rem; margin:8px 0;">🥈 Vice: ${esc(runnerUp?.name||'—')}</div>
                 <div style="color:var(--rank-s); font-family:monospace; font-size:0.85rem;">+150 ELO | Novo Rating: ${champion.rating}</div>
                 ${champion.isManual?`<div style="color:var(--liquid-blue); font-size:1rem; margin-top:10px; font-weight:bold;">⚡ VOCÊ É O CAMPEÃO DO MUNDO!</div>`:''}
             </div>`;
@@ -554,12 +651,12 @@ class MastersSimulator {
             this._save('tl_trophies_v1', trophies);
         }
 
-        alert(`🏆 CAMPEÃO DO MASTERS: ${champion.name}!\n🥈 Vice: ${runnerUp?.name||'—'}\n\n+150 ELO para ${champion.name}!`);
+        UI.showAlert(`🏆 CAMPEÃO DO MASTERS: ${champion.name}!\n🥈 Vice: ${runnerUp?.name||'—'}\n\n+150 ELO para ${champion.name}!`);
     }
 
     // ── Render ───────────────────────────────────────────────────────────────
     getPhaseName() {
-        const map={IDLE:'AGUARDANDO',GROUPS:`FASE DE GRUPOS (R${this.currentGroupRound})`,SEMIS:'SEMIFINAL',FINAL:'GRANDE FINAL',FINISHED:'MASTERS ENCERRADO'};
+        const map={IDLE:'AGUARDANDO',GROUPS:`FASE DE GRUPOS (R${this.currentGroupRound})`,REPECHAGE:'REPESCAGEM',SEMIS:'SEMIFINAL',FINAL:'GRANDE FINAL',FINISHED:'MASTERS ENCERRADO'};
         return map[this.currentPhase]||this.currentPhase;
     }
 
@@ -590,13 +687,14 @@ class MastersSimulator {
                         pending.filter(m2 => m2.t1 === x || m2.t2 === x).forEach(() => { if (Math.random() > 0.5) p += 3; });
                         return p;
                     });
-                    if ([pts,...others].sort((a,b)=>b-a).indexOf(pts) < 2) simWins++;
+                    // Top 3 do grupo seguem vivos (1º direto às semis, 2º/3º vão à repescagem)
+                    if ([pts,...others].sort((a,b)=>b-a).indexOf(pts) < 3) simWins++;
                 }
                 const qual = Math.round((simWins/SIMS)*100);
 
                 const gamesLeft = myPending.length;
 
-                // Pode perder: simula cada jogo individualmente
+                // Pode perder e ainda ficar entre os 3 primeiros (segue vivo, ao menos na repescagem)
                 const canLose = myPending.filter(lostMatch => {
                     let ptsIfLose = tm.points;
                     myPending.forEach(m => { if (m !== lostMatch) ptsIfLose += 3; });
@@ -608,7 +706,7 @@ class MastersSimulator {
                         return p;
                     });
                     const rank = [ptsIfLose, ...othersMinPts].sort((a,b)=>b-a).indexOf(ptsIfLose);
-                    return rank < 2;
+                    return rank < 3;
                 });
 
                 const mustWin = myPending.filter(m => !canLose.includes(m));
@@ -617,20 +715,18 @@ class MastersSimulator {
 
                 const oppName = (m) => {
                     const opp = m.t1 === tm ? m.t2 : m.t1;
-                    return `<img src="${opp.logo||DEFAULT_LOGO}" style="width:11px;height:11px;object-fit:contain;vertical-align:middle"> ${opp.name}`;
+                    return `<img src="${opp.logo||DEFAULT_LOGO}" style="width:11px;height:11px;object-fit:contain;vertical-align:middle"> ${esc(opp.name)}`;
                 };
 
-                // Destino correto baseado em pontos e jogos restantes
-                const maxPts = tm.points + gamesLeft * 3;
                 const curRank = [...allTeams].sort((a,b)=>b.points-a.points).indexOf(tm);
                 let fateTag;
                 if (gamesLeft === 0) {
-                    fateTag = curRank < 2
-                        ? `<span style="color:#42f590;font-size:0.65rem">✅ Classificado</span>`
-                        : `<span style="color:#ff4655;font-size:0.65rem">❌ Eliminado</span>`;
+                    if (curRank === 0) fateTag = `<span style="color:#42f590;font-size:0.65rem">🏆 Direto às Semis</span>`;
+                    else if (curRank <= 2) fateTag = `<span style="color:#ffd700;font-size:0.65rem">🔁 Repescagem</span>`;
+                    else fateTag = `<span style="color:#ff4655;font-size:0.65rem">❌ Eliminado</span>`;
                 } else if (mustWin.length === 0 && canLose.length === gamesLeft) {
-                    fateTag = `<span style="color:#42f590;font-size:0.65rem">✅ Garantido</span>`;
-                } else if (maxPts < 6) {
+                    fateTag = `<span style="color:#42f590;font-size:0.65rem">✅ Vaga garantida (Top 3)</span>`;
+                } else if (qual === 0) {
                     fateTag = `<span style="color:#ff4655;font-size:0.65rem">❌ Eliminado</span>`;
                 } else {
                     fateTag = qual >= 65
@@ -653,7 +749,7 @@ class MastersSimulator {
 
                 return `<tr class="${tm.isManual?'manual-team-row':''} ${tm.points>=6?'qualified-row':''}">
                     <td style="min-width:80px"><div style="display:flex;align-items:center;gap:4px">
-                        <img src="${tm.logo||DEFAULT_LOGO}" class="team-logo">${tm.name}
+                        <img src="${tm.logo||DEFAULT_LOGO}" class="team-logo">${esc(tm.name)}
                     </div></td>
                     <td style="text-align:center">${tm.points}</td>
                     <td style="text-align:center"><span style="font-family:monospace;font-weight:bold;color:${qualColor};font-size:0.8rem">${qual}%</span>${qualBar}</td>
@@ -668,7 +764,7 @@ class MastersSimulator {
                 <table style="width:100%">
                     <thead><tr>
                         <th>Time</th><th style="text-align:center">Pts</th>
-                        <th style="text-align:center">Classif.</th>
+                        <th style="text-align:center">Sobrevive</th>
                         <th style="font-size:0.62rem">Destino</th>
                         <th style="font-size:0.62rem">Cenário</th>
                         <th style="font-size:0.62rem">Margem</th>
@@ -682,28 +778,33 @@ class MastersSimulator {
     render(){
         document.getElementById('phaseDisplay').innerText=this.getPhaseName();
         const c=document.getElementById('mainDisplay'); c.innerHTML='';
+        const legend=document.getElementById('groupsLegend');
         if(this.currentPhase==='GROUPS'){
+            legend.style.display='block';
             this._renderGroupsWithChances(this.groups, this.schedule, c);
             const played=this.schedule.filter(m=>m.played).length;
             document.getElementById('progressBar').style.width=(played/Math.max(this.schedule.length,1))*100+'%';
         } else if(!['IDLE','FINISHED'].includes(this.currentPhase)){
+            legend.style.display='none';
             c.className='bracket-container';
             const renderM=m=>{
                 const isTL=m.t1?.isManual||m.t2?.isManual;
                 const t1W=m.winner?.name===m.t1?.name, t2W=m.winner?.name===m.t2?.name;
-                return`<div class="match-card ${m.played?'':'active'} ${isTL?'tl-match':''}">
-                    <div class="match-team ${t1W?(m.t1?.isManual?'winner':'enemy-winner'):''}"><div class="team-name-flex"><span class="reg-tag reg-${m.t1?.region||''}">${m.t1?.region||''}</span><img src="${m.t1?.logo||DEFAULT_LOGO}" class="team-logo">${m.t1?m.t1.name:'...'}</div></div>
+                return`<div class="match-card ${m.played?'':'active'} ${isTL?'tl-match':''} ${m.phase==='REPECHAGE'?'repechage-match':''}">
+                    <div class="match-team ${t1W?(m.t1?.isManual?'winner':'enemy-winner'):''}"><div class="team-name-flex"><span class="reg-tag reg-${m.t1?.region||''}">${m.t1?.region||''}</span><img src="${m.t1?.logo||DEFAULT_LOGO}" class="team-logo">${m.t1?esc(m.t1.name):'...'}</div></div>
                     <div class="match-vs">VS</div>
-                    <div class="match-team ${t2W?(m.t2?.isManual?'winner':'enemy-winner'):''}"><div class="team-name-flex"><span class="reg-tag reg-${m.t2?.region||''}">${m.t2?.region||''}</span><img src="${m.t2?.logo||DEFAULT_LOGO}" class="team-logo">${m.t2?m.t2.name:'...'}</div></div>
+                    <div class="match-team ${t2W?(m.t2?.isManual?'winner':'enemy-winner'):''}"><div class="team-name-flex"><span class="reg-tag reg-${m.t2?.region||''}">${m.t2?.region||''}</span><img src="${m.t2?.logo||DEFAULT_LOGO}" class="team-logo">${m.t2?esc(m.t2.name):'...'}</div></div>
                     ${m.score?`<div class="match-score">${m.score}</div>`:''}
                 </div>`;
             };
             let html='';
-            const phases=['SEMIS','FINAL'].filter(p=>this.knockoutMatches.some(m=>m.phase===p));
-            const labels={SEMIS:'Semifinal',FINAL:'GRANDE FINAL'};
+            const phases=['REPECHAGE','SEMIS','FINAL'].filter(p=>this.knockoutMatches.some(m=>m.phase===p));
+            const labels={REPECHAGE:'Repescagem',SEMIS:'Semifinal',FINAL:'GRANDE FINAL'};
             phases.forEach(p=>{html+=`<div class="bracket-column"><div class="bracket-header">${labels[p]}</div>${this.knockoutMatches.filter(m=>m.phase===p).map(renderM).join('')}</div>`;});
             c.innerHTML=html;
             document.getElementById('progressBar').style.width='100%';
+        } else {
+            legend.style.display='none';
         }
         this.renderLog();
     }
@@ -728,7 +829,8 @@ class MastersSimulator {
     // ── Manual Modal ─────────────────────────────────────────────────────────
     openModal(match,bestOf){
         const opp=match.t1.isManual?match.t2:match.t1, man=match.t1.isManual?match.t1:match.t2;
-        const K=getKFactor(this.currentPhase), chance=(100/(1+Math.pow(10,(opp.rating-man.rating)/400))).toFixed(1);
+        const K=getKFactor(this.currentPhase);
+        const { chance } = this.calcEloChange(man.rating, opp.rating, K);
         const h2h=this.tlStats.headToHead[opp.name]||{wins:0,losses:0};
         document.getElementById('modalOpponent').innerText=opp.name;
         document.getElementById('modLogoManual').src=man.logo||DEFAULT_LOGO;
@@ -740,12 +842,14 @@ class MastersSimulator {
             <div class="prematch-row">
                 <div class="prematch-stat"><span class="pval">${chance}%</span><span class="plbl">Chance Vitória</span></div>
                 <div class="prematch-stat"><span class="pval">${man.rating}</span><span class="plbl">Seu ELO</span></div>
-                <div class="prematch-stat"><span class="pval">${opp.rating}</span><span class="plbl">ELO ${opp.name}</span></div>
+                <div class="prematch-stat"><span class="pval">${opp.rating}</span><span class="plbl">ELO ${esc(opp.name)}</span></div>
                 <div class="prematch-stat"><span class="pval ${h2h.wins>=h2h.losses?'result-w':'result-l'}">${h2h.wins}W—${h2h.losses}L</span><span class="plbl">H2H${!h2h.wins&&!h2h.losses?' (1º)':''}</span></div>
             </div>
             <div class="win-chance-bar"><div class="win-chance-fill" style="width:${chance}%"></div></div>`;
         const c=document.getElementById('mapsContainer');c.innerHTML='';
-        for(let i=1;i<=bestOf;i++)c.innerHTML+=`<div class="map-row"><span style="width:55px;text-align:right;color:#666;font-size:0.82rem;">MAP ${i}</span><input type="number" id="m${i}_f" placeholder="?" min="0" max="30"><span style="color:#555">—</span><input type="number" id="m${i}_e" placeholder="?" min="0" max="30"></div>`;
+        for(let i=1;i<=bestOf;i++)c.innerHTML+=`<div class="map-row"><span style="width:55px;text-align:right;color:#666;font-size:0.82rem;">MAP ${i}</span><input type="number" id="m${i}_f" placeholder="?" min="0" max="30" oninput="ms._updateEloPreview()"><span style="color:#555">—</span><input type="number" id="m${i}_e" placeholder="?" min="0" max="30" oninput="ms._updateEloPreview()"></div>`;
+        document.getElementById('eloPreview').style.display='none';
+        document.getElementById('eloPreviewText').innerHTML='Preencha os mapas para ver a variação de ELO';
         this.manualMatchPending=match;this.manualMatchPending.bestOf=bestOf;
         document.getElementById('manualModal').style.display='flex';
     }
@@ -753,8 +857,8 @@ class MastersSimulator {
     confirmManualMatch(){
         const bestOf=this.manualMatchPending.bestOf||3;
         let maps=[],wM=0,wE=0;const wt=Math.ceil(bestOf/2);
-        for(let i=1;i<=bestOf;i++){if(wM>=wt||wE>=wt)break;const vf=document.getElementById(`m${i}_f`).value,ve=document.getElementById(`m${i}_e`).value;if(vf===''||ve===''){alert(`Preencha o Mapa ${i}`);return;}const s1=parseInt(vf),s2=parseInt(ve);if(isNaN(s1)||isNaN(s2)||s1<0||s2<0){alert(`Placar inválido no Mapa ${i}`);return;}if(s1>s2)wM++;else wE++;maps.push({sW:Math.max(s1,s2),sL:Math.min(s1,s2)});}
-        if(wM<wt&&wE<wt){alert('Série indefinida!');return;}
+        for(let i=1;i<=bestOf;i++){if(wM>=wt||wE>=wt)break;const vf=document.getElementById(`m${i}_f`).value,ve=document.getElementById(`m${i}_e`).value;if(vf===''||ve===''){UI.showAlert(`Preencha o Mapa ${i}`);return;}const s1=parseInt(vf),s2=parseInt(ve);if(isNaN(s1)||isNaN(s2)||s1<0||s2<0){UI.showAlert(`Placar inválido no Mapa ${i}`);return;}if(s1>s2)wM++;else wE++;maps.push({sW:Math.max(s1,s2),sL:Math.min(s1,s2)});}
+        if(wM<wt&&wE<wt){UI.showAlert('Série indefinida!');return;}
         const match=this.manualMatchPending,manual=match.t1.isManual?match.t1:match.t2,enemy=match.t1.isManual?match.t2:match.t1;
         const winner=wM>wE?manual:enemy,loser=wM>wE?enemy:manual;
         match.played=true;this.resolveStats(winner,loser,`${Math.max(wM,wE)}-${Math.min(wM,wE)}`,maps,match);this.manualMatchPending=null;this.closeModal();
@@ -781,7 +885,7 @@ class MastersSimulator {
         }
         if (wM < 2 && wE < 2) return;
         const won = wM > wE;
-        const { gain, loss, chance } = calcElo(man.rating, opp.rating, K);
+        const { gain, loss, chance } = this.calcEloChange(man.rating, opp.rating, K);
         const delta  = won ? gain : -loss;
         const newElo = Math.max(0, man.rating + delta);
         const color  = won ? '#42f590' : '#ff4655';
@@ -832,12 +936,12 @@ class MastersSimulator {
             <div class="chart-container"><h3>📈 Evolução ELO (Kickoff + Masters)</h3><canvas id="eloChart"></canvas></div>`;
             this._drawChart();
         } else if(tab==='history'){
-            const rows=[...m].reverse().map(x=>`<tr><td style="color:#555;font-size:0.72rem;">${x.date}</td><td style="font-size:0.7rem;color:#888;">${x.season}</td><td><img src="${x.oppLogo||DEFAULT_LOGO}" style="width:16px;height:16px;object-fit:contain;vertical-align:middle;margin-right:4px">${x.opponent}</td><td class="${x.result==='W'?'result-w':'result-l'}">${x.result==='W'?'✓ WIN':'✗ LOSS'}</td><td style="font-family:monospace">${x.score}</td><td style="font-size:0.7rem;color:#666">${x.phase}</td><td class="${x.eloChange>0?'elo-up':'elo-down'}">${x.eloChange>0?'+':''}${x.eloChange}→${x.eloAfter}</td></tr>`).join('');
+            const rows=[...m].reverse().map(x=>`<tr><td style="color:#555;font-size:0.72rem;">${x.date}</td><td style="font-size:0.7rem;color:#888;">${esc(x.season)}</td><td><img src="${x.oppLogo||DEFAULT_LOGO}" style="width:16px;height:16px;object-fit:contain;vertical-align:middle;margin-right:4px">${esc(x.opponent)}</td><td class="${x.result==='W'?'result-w':'result-l'}">${x.result==='W'?'✓ WIN':'✗ LOSS'}</td><td style="font-family:monospace">${x.score}</td><td style="font-size:0.7rem;color:#666">${esc(x.phase)}</td><td class="${x.eloChange>0?'elo-up':'elo-down'}">${x.eloChange>0?'+':''}${x.eloChange}→${x.eloAfter}</td></tr>`).join('');
             body.innerHTML=`<div style="max-height:420px;overflow-y:auto"><table class="history-table"><thead><tr><th>Data</th><th>Torneio</th><th>Oponente</th><th>Resultado</th><th>Score</th><th>Fase</th><th>ELO</th></tr></thead><tbody>${rows||'<tr><td colspan="7" style="text-align:center;color:#555;padding:30px">Nenhuma partida ainda</td></tr>'}</tbody></table></div>`;
         } else if(tab==='h2h'){
             const h2h=this.tlStats.headToHead;
             const entries=Object.entries(h2h).map(([name,data])=>({name,...data,total:data.wins+data.losses,wr:data.wins+data.losses>0?Math.round((data.wins/(data.wins+data.losses))*100):0})).sort((a,b)=>b.total-a.total);
-            const rows=entries.map(e=>`<tr><td><img src="${e.logo||DEFAULT_LOGO}" style="width:18px;height:18px;object-fit:contain;vertical-align:middle;margin-right:5px">${e.name}</td><td class="result-w">${e.wins}W</td><td class="result-l">${e.losses}L</td><td>${e.total}</td><td><span style="font-family:monospace;font-weight:bold;color:${e.wr>=50?'var(--rank-s)':'var(--val-red)'}">${e.wr}%</span><span class="win-bar-bg"><span class="win-bar-fill" style="width:${e.wr}%"></span></span></td></tr>`).join('');
+            const rows=entries.map(e=>`<tr><td><img src="${e.logo||DEFAULT_LOGO}" style="width:18px;height:18px;object-fit:contain;vertical-align:middle;margin-right:5px">${esc(e.name)}</td><td class="result-w">${e.wins}W</td><td class="result-l">${e.losses}L</td><td>${e.total}</td><td><span style="font-family:monospace;font-weight:bold;color:${e.wr>=50?'var(--rank-s)':'var(--val-red)'}">${e.wr}%</span><span class="win-bar-bg"><span class="win-bar-fill" style="width:${e.wr}%"></span></span></td></tr>`).join('');
             body.innerHTML=`<div style="max-height:420px;overflow-y:auto"><table class="h2h-table"><thead><tr><th>Time</th><th>Wins</th><th>Losses</th><th>Total</th><th>Win Rate</th></tr></thead><tbody>${rows||'<tr><td colspan="5" style="text-align:center;color:#555;padding:30px">Nenhum confronto registrado</td></tr>'}</tbody></table></div>`;
         }
     }
@@ -874,7 +978,7 @@ class MastersSimulator {
             const cls=i===0?'rank-1':i===1?'rank-2':i===2?'rank-3':t.name==='Team Liquid'?'rank-liquid':'';
             return`<div style="display:grid;grid-template-columns:45px 1fr 80px;align-items:center;background:#1a1a1a;padding:8px 14px;border-radius:5px;border-left:4px solid ${i===0?'var(--gold)':i===1?'var(--silver)':i===2?'var(--bronze)':t.name==='Team Liquid'?'var(--liquid-blue)':'#333'}">
                 <div style="font-size:1.2rem;font-weight:800;color:${i<3?['var(--gold)','var(--silver)','var(--bronze)'][i]:'#555'};text-align:center">#${i+1}</div>
-                <div style="display:flex;align-items:center;gap:10px"><img src="${t.logo||DEFAULT_LOGO}" style="width:30px;height:30px;object-fit:contain"><span style="color:${t.name==='Team Liquid'?'var(--liquid-blue)':'#eee'}">${t.name}</span></div>
+                <div style="display:flex;align-items:center;gap:10px"><img src="${t.logo||DEFAULT_LOGO}" style="width:30px;height:30px;object-fit:contain"><span style="color:${t.name==='Team Liquid'?'var(--liquid-blue)':'#eee'}">${esc(t.name)}</span></div>
                 <div style="text-align:right;font-family:monospace;font-weight:bold;color:${i<3?['var(--gold)','var(--silver)','var(--bronze)'][i]:'#888'}">${t.rating}</div>
             </div>`;
         }).join('')+'</div>';
@@ -882,30 +986,32 @@ class MastersSimulator {
     }
 
     newSeason(){
-        if(!confirm('Iniciar nova season do Masters?\n\n✓ ELO global preservado\n✓ Histórico de carreira preservado\n✗ Qualificados do Kickoff resetados\n✗ Progresso atual do Masters apagado')) return;
-        saveSeasonSnapshot('MASTERS');
-        DB.removeAll([MASTERS_KEY, QUALIFIER_KEY]);
-        this.teams=[]; this.groups={}; this.schedule=[];
-        this.knockoutMatches=[]; this.historyLogs=[];
-        this.currentPhase='IDLE'; this.currentGroupRound=1;
-        this.manualMatchPending=null;
-        this.qualifiers={ AMER:[], EMEA:[], PAC:[], CN:[] };
-        document.getElementById('importPanel').style.display='block';
-        document.getElementById('phaseDisplay').style.display='none';
-        document.getElementById('btnPlay').style.display='none';
-        document.getElementById('championDisplay').style.display='none';
-        document.getElementById('mainDisplay').innerHTML='';
-        this.renderImportPanel();
-        this.updateButtons();
-        this.renderLog();
+        UI.showConfirm('Iniciar nova season do Masters?\n\n✓ ELO global preservado\n✓ Histórico de carreira preservado\n✗ Qualificados do Kickoff resetados\n✗ Progresso atual do Masters apagado', () => {
+            saveSeasonSnapshot('MASTERS');
+            DB.removeAll([MASTERS_KEY, QUALIFIER_KEY]);
+            this.teams=[]; this.groups={}; this.schedule=[];
+            this.knockoutMatches=[]; this.historyLogs=[];
+            this.currentPhase='IDLE'; this.currentGroupRound=1;
+            this.manualMatchPending=null;
+            this.qualifiers={ AMER:[], EMEA:[], PAC:[], CN:[] };
+            document.getElementById('importPanel').style.display='block';
+            document.getElementById('phaseDisplay').style.display='none';
+            document.getElementById('btnPlay').style.display='none';
+            document.getElementById('championDisplay').style.display='none';
+            document.getElementById('mainDisplay').innerHTML='';
+            document.getElementById('groupsLegend').style.display='none';
+            this.renderImportPanel();
+            this.updateButtons();
+            this.renderLog();
+        });
     }
 
     resetAll(){
-        if(confirm('WIPE TOTAL?\nApaga qualificados, ELO, carreira e histórico de todos os torneios.')){
+        UI.showConfirm('WIPE TOTAL?\nApaga qualificados, ELO, carreira e histórico de todos os torneios.', () => {
             saveSeasonSnapshot('MASTERS');
             DB.removeAll([ELO_KEY,QUALIFIER_KEY,TL_STATS_KEY,MASTERS_KEY]);
             location.reload();
-        }
+        });
     }
 }
 
